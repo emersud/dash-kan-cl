@@ -904,3 +904,14 @@ SOLICITADAS PELO USUÁRIO EXECUTADAS E VALIDADAS COM npm run build).
 
   VALIDAÇÃO: npm run build - SUCESSO (175 módulos).
 --------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-09-23] VITE.CONFIG.JS - PREVIEW ALLOWEDHOSTS (RENDER) ✔
+  - Solicitado pelo usuário para permitir o deploy/preview no Render.
+  - vite.config.js atualizado exatamente para:
+      plugins: [react()]
+      preview.allowedHosts: ['dash-kan-cl.onrender.com']
+  - Removido o bloco server (host/port) anterior; deploy em Static Site
+    usa `npm run build` -> dist (preview local continua via `npm run preview`).
+  - VALIDACAO: npm run build - SUCESSO (175 modulos).
+--------------------------------------------------------------------------------
