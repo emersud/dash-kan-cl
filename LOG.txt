@@ -1,0 +1,878 @@
+================================================================================
+ LOG DE DESENVOLVIMENTO - EDUPROJECT AGILE (Gestão Ágil Educacional Simplificada)
+================================================================================
+ Início: 2026-09-14  |  Stack: React 18 + Vite + Bootstrap 5 + JS Puro  |  Deploy: Render
+--------------------------------------------------------------------------------
+
+DIVISÃO DE FASES (VISUALIZAÇÃO DE TELAS AO FINAL DE CADA FASE):
+
+  [FASE 1] - ESQUELETO & NAVEGAÇÃO
+    - Criar projeto Vite + React + Bootstrap 5 + Bootstrap Icons.
+    - Layout mestre (Navbar/Sidebar) com navegação entre as 4 telas.
+    - 4 páginas placeholder + AppContext (estado global) + mockData + dataService.
+    -> VISUALIZÁVEL: Navegação entre as 4 abas.
+
+  [FASE 2] - TELA 1: TURMAS & ALUNOS (IMPORTAÇÃO EXCEL/CSV)
+    - Cadastro direto de turmas.
+    - Importador Excel/CSV com mapeamento de colunas.
+    - Geração de credenciais (senha padrão Mudar123, primeiro_acesso=true).
+    -> VISUALIZÁVEL: Lista de turmas e alunos + upload de planilha.
+
+  [FASE 3] - TELA 2: FORMAÇÃO DE EQUIPES (MIX MULTI-TURMA)
+    - Tabela multi-turma com checkboxes e filtros cruzados.
+    - Personalização: nome, cor HEX, logo, papéis no grupo.
+    -> VISUALIZÁVEL: Criação/edição de equipes misturando turmas.
+
+  [FASE 4] - TELA 3: PROJETOS & BACKLOG UNIFICADO
+    - Cadastro de projetos (nome, escopo, prazo, metas).
+    - Atribuição flexível a 1 ou várias equipes.
+    - Cadastro de tarefas/backlog (título, descrição, prioridade, responsável, prazo).
+    -> VISUALIZÁVEL: Projetos e criação de tarefas no backlog.
+
+  [FASE 5] - TELA 4: DASHBOARD & KANBAN ATIVO
+    - KPIs de saúde das equipes (semáforo aluno + alertas).
+    - Radar de Engajamento (score automático).
+    - Kanban com 4 colunas (A Fazer | Em Andamento | Em Revisão | Concluído)
+      + Drag-and-Drop @hello-pangea/dnd + detalhe de tarefa + checklist.
+    -> VISUALIZÁVEL: Painel completo + kanban interativo com drag-drop.
+
+--------------------------------------------------------------------------------
+ REGISTRO DE EXECUÇÃO:
+
+[2026-09-14] FASE 1 - CONCLUÍDA ✔
+  - Projeto Vite + React 18 + Bootstrap 5 + Bootstrap Icons criado e build passou (npm run build).
+  - Layout mestre com Sidebar de navegação entre as 4 telas implementado.
+  - 4 páginas placeholder criadas (Students, Teams, Projects, Dashboard).
+  - AppContext (estado global) + mockData + dataService (adaptador Mock<->Supabase) prontos.
+  - Utils healthCalculator e engagementRadar criados; excelService adicionado.
+  - Servidor dev rodando em http://localhost:5173 (HTTP 200 OK).
+  -> VISUALIZÁVEL: Navegação entre as 4 abas. Aguardando observações do usuário.
+
+  RESTA FAZER: Fase 2 (Turmas & Alunos + importação Excel/CSV), Fase 3 (Equipes),
+               Fase 4 (Projetos & Backlog), Fase 5 (Dashboard + Kanban drag-drop).
+
+[2026-09-15] TEMA DE CORES (CORES.MD) + LOGIN/CADASTRO - IMPLEMENTADO ✔
+  - PROJ.md atualizado com seção "Esquema de Cores OBRIGATÓRIO" (regra para usar CORES.MD).
+  - Criado src/styles.css com tokens CSS do CORES.MD (Dark default + Light mode).
+  - Importado styles.css no main.jsx com initTheme (persistência em localStorage).
+  - Aplicado tema no layout: Sidebar reescrita com classes temáticas + botão alternância
+    Dark<->Light + botão logout; App.jsx usa classe app-shell.
+  - Criado dados mockados de login (campo senha nos usuários + credenciaisExemplo).
+  - Criado dataService.autenticar(email, senha).
+  - Criado LoginPage.jsx com aba Entrar e Cadastrar (novo usuário) + credenciais demo.
+  - Autenticação integrada no App (mostra login se não autenticado; logout na sidebar).
+  - Build validado (npm run build) e servidor rodando em http://localhost:5173 (HTTP 200).
+  -> CREDENCIAIS DEMO: Professor carlos@escola.com / 123456  |  Aluno joao@aluno.com / Mudar123
+
+  RESTA FAZER: Fase 2 (Turmas & Alunos + importação Excel/CSV), Fase 3 (Equipes),
+               Fase 4 (Projetos & Backlog), Fase 5 (Dashboard + Kanban drag-drop).
+
+[2026-09-15] FASE 2 - TELA 1: TURMAS & ALUNOS - IMPLEMENTADO ✔
+  - StudentsPage reescrita: cards de turmas, lista de alunos, modal Nova Turma.
+  - Cadastro direto de turmas (nome, código de acesso, cor temática HEX).
+  - Criado ExcelUploader com drag-and-drop (.xlsx/.xls/.csv), prévia de dados e
+    mapeamento de colunas (Nome, E-mail, Matrícula).
+  - Importação gera alunos com senha padrão Mudar123 e primeiro_acesso = true.
+  - Build validado (npm run build) e servidor rodando em http://localhost:5173 (HTTP 200).
+  -> VISUALIZÁVEL: Cadastro de turmas, lista de alunos e importação Excel/CSV.
+
+  RESTA FAZER: Fase 3 (Equipes - Mix Multi-Turma), Fase 4 (Projetos & Backlog),
+               Fase 5 (Dashboard + Kanban drag-drop).
+
+[2026-09-15] FASE 3 - TELA 2: FORMAÇÃO DE EQUIPES (MIX MULTI-TURMA) - IMPLEMENTADO ✔
+  - TeamsPage reescrita: cards de equipes com logo, cor, membros e papéis.
+  - Criado TeamBuilderModal com:
+    * Nome, cor temática (HEX) e logo (URL com fallback DiceBear).
+    * Seleção de membros com mix multi-turma (filtro por turma + checkboxes).
+    * Atribuição de papel no grupo (Líder, Dev, Frontend, Backend, QA, etc.).
+  - Criar/editar/excluir equipes (exclusão também remove tarefas associadas).
+  - Expansão para visualizar papéis dos membros.
+  - Build validado (npm run build) e servidor rodando em http://localhost:5173 (HTTP 200).
+  -> VISUALIZÁVEL: Criação/edição de equipes misturando alunos de turmas diferentes.
+
+  RESTA FAZER: Fase 4 (Projetos & Backlog), Fase 5 (Dashboard + Kanban drag-drop).
+
+[2026-09-15] FASE 4 - TELA 3: PROJETOS & BACKLOG - IMPLEMENTADO ✔
+  - ProjectsPage implementada: acordeão de projetos com backlog de tarefas.
+  - Criado ProjectForm: nome, descrição/escopo, prazo de entrega e atribuição
+    flexível a 1 ou várias equipes (badges selecionáveis).
+  - Criado BacklogAssigner: título, descrição, prioridade (Baixa/Média/Alta/Urgente),
+    equipe responsável, aluno responsável (filtrado pelos membros da equipe) e prazo.
+  - Criar/editar/excluir projetos (exclusão remove tarefas associadas) e tarefas.
+  - Build validado (npm run build) e servidor rodando em http://localhost:5173 (HTTP 200).
+  -> VISUALIZÁVEL: Cadastro de projetos, vinculação a equipes e criação de backlog.
+
+[2026-09-15] FASE 5 - TELA 4: DASHBOARD & KANBAN ATIVO - IMPLEMENTADO ✔
+  - DashboardPage implementada: KPIs globais (tarefas, concluídas, % conclusão, atrasadas)
+    com filtro por projeto e equipe.
+  - TeamHealthCard: saúde das equipes com % de conclusão, alertas (ocioso/sobrecarregado/atraso).
+  - EngagementRadarTable: radar de engajamento com score automático por aluno.
+  - StudentStatusDot: semáforo do aluno (🔴 Pendente/Atrasado, 🟡 Em Andamento, 🟢 Concluído).
+  - Criado Kanban (BoardKanban/Column/TaskCard/TaskDetailModal) com 4 colunas
+    (A Fazer | Em Andamento | Em Revisão | Concluído), drag-and-drop @hello-pangea/dnd
+    (movimentação por status + ordenação por posição), foto do responsável, tag de
+    prioridade, marcação de atraso e checklist (adicionar/concluir itens).
+  - Movimentação de card registra atividade (historico_atividades) e refresh do estado.
+  - Build validado (npm run build) e servidor rodando em http://localhost:5173 (HTTP 200).
+  -> VISUALIZÁVEL: Painel completo + kanban interativo com drag-drop e checklist.
+
+[2026-09-15] FASE 6 - SEPARAÇÃO DE TELAS (DASHBOARD | KANBAN | RADAR) + MOCKS EVOLUÍDOS ✔
+  - Analisado PROJNew.md; aplicado apenas o que ainda não existia (Fases 1-5 preservadas).
+  - SEPARAÇÃO DE TELAS: a antiga "Dashboard & Kanban" foi dividida em 3 páginas:
+    * DashboardPage (KPIs globais + saúde das equipes + semáforo do aluno).
+    * KanbanPage (quadro 4 colunas com drag-and-drop + detalhe/checklist da tarefa).
+    * RadarPage (radar de engajamento com gauge visual 0-100 + tabela detalhada).
+  - Criado novo componente src/components/dashboard/RadarGauge.jsx (gauge SVG do score).
+  - Sidebar/App.jsx: menu agora com 6 itens (adicionados "Kanban" e "Radar de Engajamento").
+  - ALGORITMO EVOLUÍDO (src/utils/engagementRadar.js) conforme PROJNew.md:
+    * Score normalizado 0-100; adicionados daily_checkin×2 e impedidas×2.
+    * Penalidade progressiva de ociosidade (×1.5 se > 3 dias de inatividade).
+    * Novas situações: Protagônico / Boa Participação / Atenção / Crítica.
+    * Retorna corHex + métricas detalhadas (concluídas, atrasadas, checkins, impedidas...).
+  - MOCKS ENRIQUECIDOS (src/services/mockData.js) para visualização de todas as telas:
+    * 3 turmas, 7 usuários (com avatar_url), 2 equipes, 2 projetos, 8 tarefas (todos
+      os status, incluindo is_impedida), 10 registros de histórico (daily_checkin,
+      concluiu_checklist, comentou, movimentou_card, bloqueou).
+  - PROJ.md atualizado com a Seção 9 (Fase 6) contendo o comparativo PROJ.md vs PROJNew.md.
+  - Build validado (npm run build) e servidor rodando em http://localhost:5173 (HTTP 200).
+
+[2026-09-15] FASE 7 - RESTRIÇÕES DE PERMISSÃO (RLS/UI) + MÓDULO DAILY REGISTER ✔
+  - Analisado PROJETO_REESTRUTURADO.md; aplicadas alterações e restrições especificadas.
+  - MATRIZ DE PERMISSÕES (src/utils/permissions.js): helper isProfessor, equipeDoAluno,
+    podeEditarEquipe, podeVerProjeto, podeVerTarefa. Aplicada nas páginas:
+    * Turmas & Alunos (StudentsPage): aluno apenas VISUALIZA (sem criar turma/importar Excel).
+    * Equipes (TeamsPage): aluno vê APENAS a própria equipe, pode EDITAR somente logo e
+      repositório GitHub (não cria, não exclui, não remove membros).
+    * Projetos & Backlog (ProjectsPage): aluno vê apenas projetos/tarefas da própria
+      equipe; sem criar/editar/excluir.
+    * Kanban (KanbanPage/BoardKanban/TaskDetailModal): aluno vê/arrasta apenas tarefas da
+      própria equipe e não exclui tarefas.
+    * Sidebar/App.jsx: menu filtra itens por perfil (Dashboard e Radar só para professor).
+  - MÓDULO DAILY REGISTER (NOVO - src/pages/DailyRegisterPage.jsx) para o aluno:
+    * Botão "Fazer Check-in de Hoje 🚀" com streak de dias seguidos (🔥).
+    * Painel de tarefas rápidas (concluir tarefa) sob responsabilidade do aluno.
+    * Caixa de Lições Aprendidas (máx. 280 caracteres) + feed do histórico da equipe.
+  - DATA: criada coleção daily_registers no mockData + CRUD no dataService (listar,
+    criar/atualizar/remover, respeitando UNIQUE aluno+data_checkin) e estado no AppContext.
+  - CAMPO github_url adicionado nas equipes (mockData + TeamBuilderModal) e exibido nas cards.
+  - Build validado (npm run build) e servidor rodando em http://localhost:5173 (HTTP 200).
+
+[2026-09-15] FASE 8 - EQUIPES COM STATUS + RADAR POR ALUNO + DAILY PROFESSOR + PROJETOS/KANBAN ✔
+  - Analisado "FASE 8.txt". Aplicadas as alterações especificadas.
+  - TELA EQUIPES (TeamsPage): miniaturas dos alunos (StudentThumb) exibem STATUS do aluno:
+    * Verde = todas as tarefas no prazo; Amarelo = em andamento; Vermelho = em atraso;
+      Cinza = sem tarefas.
+    * Se PROFESSOR clicar no aluno, abre a tela RADAR DE ENGAJAMENTO daquele aluno com suas
+      estatísticas (via navegação AppContext radarAlunoId + activePage).
+  - RADAR (RadarPage): suporta aluno pré-selecionado (mostra gauge + detalhamento do aluno).
+  - DAILY REGISTER modo PROFESSOR (DailyRegisterPage): lista alunos; ao selecionar exibe
+    check-ins, tarefas e lições aprendidas do aluno com botão de EXCLUIR registro (lição/
+    impedimento impróprio).
+  - IMPORTAR ALUNOS (ExcelUploader): adicionado botão "Cancelar" para fechar o modal.
+  - PROJETOS (ProjectForm): campos Data de início, Data limite final e Links/Recursos.
+  - TAREFAS (BacklogAssigner): Checklist de Critérios de Aceite (adicionar/excluir/marcar)
+    e campo Estimativa/Complexidade (P/M/G/1/2/3/5/8).
+  - KANBAN (BoardKanban/Column/Badge): agora com 5 colunas
+    (📥 Backlog | 📋 A Fazer | ⚙️ Fazendo | 🔍 Em Revisão | ✅ Concluído); apenas PROFESSOR
+    pode validar a etapa "Concluído"; TaskCard exibe estimativa.
+  - MOCKS ATUALIZADOS (mockData.js): tarefas com status 'backlog' (k9/k10) + estimativa;
+    projetos com data_inicio/recursos. Todas as telas possuem dados mockados.
+  - Build validado (npm run build) e servidor rodando em http://localhost:5173 (HTTP 200).
+
+[2026-09-15] FASE 9 - DIVISÃO PROJETOS/BACKLOG EM DUAS TELAS + KANBAN 4 COLUNAS COM VALIDAÇÃO ✔
+  - DIVISÃO DE TELAS: a antiga "Projetos & Backlog" foi dividida em duas páginas com
+    responsabilidades distintas:
+    * ProjectsPage.jsx (tela "Projetos"): o PROFESSOR cria/edita/exclui projetos, associa
+      1 ou várias equipes, vê status (nº tarefas, % conclusão) e equipes vinculadas em
+      cards; botão "Gerenciar Backlog" navega para a tela de Backlog do projeto.
+    * BacklogPage.jsx (tela "Backlog do Projeto"): gerencia as tarefas/backlog do projeto
+      selecionado, usando o modal BacklogAssigner (mesma UI do modal anterior) com
+      CRUD de tarefas. Navegação via AppContext backlogProjetoId + activePage.
+  - SIDEBAR/APP: adicionada a rota "backlog" (só professor); item renomeado para "Projetos".
+  - KANBAN (BoardKanban/Column/Badge): reduzido de 5 para 4 colunas
+    (📥 Backlog | 📋 A Fazer | ⚙️ Fazendo | ✅ Concluído), removendo "Em Revisão".
+    * ALUNO: pode movimentar até "fazendo" e mover para "concluído", mas ao fazê-lo o card
+      recebe flag "Em análise" (campo aguardando_validacao=true) e permanece na coluna.
+    * PROFESSOR: aprova a flag (aprovar_concluida) para validar a tarefa como concluída;
+      o badge "Em análise" é exibido no card e no modal de detalhe da tarefa.
+    * TaskCard continua exibindo a estimativa.
+  - MOCKS: tarefa k4 migrada de 'revisao' para 'concluido' com aguardando_validacao=true;
+    demais status ajustados às 4 colunas. Todas as telas possuem dados mockados.
+  - Build validado (npm run build) e servidor rodando em http://localhost:5173 (HTTP 200).
+
+[2026-09-17] FASE 10 - BOTÃO CANCELAR NO MODAL DE IMPORTAÇÃO + PÁGINA PERFIL DO ALUNO ✔
+  - SOLICITAÇÃO: 1) Na página "Turmas & Alunos", no modal de importação
+    (modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg), incluir um botão
+    "Cancelar" ao lado de "Selecionar arquivo" para encerrar a tela (o modal não fechava);
+    2) Criar página nova "Perfil do Aluno" para o aluno visualizar tarefas/backlogs, alertas
+    de atividades e projetos, seu próprio radar de engajamento, escolher novas tarefas e
+    backlogs para realizar, e visualizar/editar foto e dados do próprio perfil.
+  - 1) EXCELUPLOADER (src/components/teams/ExcelUploader.jsx):
+    * Adicionado botão "Cancelar" (btn-secondary) exibido logo ao lado do botão
+      "Selecionar arquivo" na zona de arrastar/soltar, mesmo ANTES de selecionar arquivo.
+    * Ao clicar, dispara onCancel -> fechar o modal (setShowImport(false)) em StudentsPage.
+    * (Obs.: já existia um "Cancelar" dentro do painel de mapeamento, porém só aparecia após
+      ler o arquivo; agora há cancelamento disponível desde o início.)
+  - 2) NOVA PÁGINA src/pages/StudentProfilePage.jsx (Perfil do Aluno):
+    * CABEÇALHO DO PERFIL: foto/avatar, nome, e-mail, badges de papel e equipe, papel no
+      grupo e botão "Editar Perfil" (abre Modal de edição de nome e foto/URL).
+    * RADAR DE ENGAJAMENTO: gauge SVG (RadarGauge) 0-100 + métricas (concluídas, check-ins
+      diários, checklists, comentários, atrasadas, impedidas) via calcularScoreEngajamento.
+    * MEUS PROJETOS: lista de projetos da equipe do aluno com descrição e data de entrega.
+    * MINHAS TAREFAS: lista das tarefas atribuídas ao aluno com status (Badge).
+    * BACKLOG DISPONÍVEL: tarefas de backlog da equipe ainda não assumidas; botão
+      "Assumir Tarefa" atribui o aluno (aluno_id) e move para "a_fazer",
+      registrando atividade 'assumiu_tarefa' no histórico.
+    * ALERTAS DE ATIVIDADES E PROJETOS: alertas automáticos (tarefas em atraso, tarefas
+      impedidas, projetos com entrega próxima e check-in diário pendente).
+    * EDIÇÃO DE PERFIL: salvar via dataService.atualizarUsuario; atualiza usuário logado
+      no contexto (setUsuarioLogado) e a lista de usuários.
+  - ROTEAMENTO: App.jsx registrou a rota 'profile' (StudentProfilePage) e Sidebar adicionou
+    o item "Perfil do Aluno" (bi-person-circle), visível para todos os perfis.
+  - Build validado (npm run build - sucesso, 130 módulos transformados). Nenhuma dependência
+    nova necessária. Todas as alterações concluídas e verificadas.
+
+[2026-09-17] FASE 11 - LOGIN ABRE PERFIL + MENU "PERFIL" NO TOPO + EDIÇÃO NOME/E-MAIL/SENHA ✔
+  - SOLICITAÇÃO: 1) Ao logar no sistema, carregar automaticamente a página de perfil;
+    2) Renomear a página de "Perfil do Aluno" para apenas "Perfil" e posicioná-la no ALTO
+    do menu lateral; 3) No botão "Editar Perfil", permitir alterar nome, e-mail e senha de
+    acesso.
+  - LOGIN (src/App.jsx): o callback onLoginSuccess agora navega para a rota 'profile'
+    (antes 'students'), fazendo o usuário cair direto no seu perfil após autenticar.
+  - MENU (src/components/common/Sidebar.jsx): o item foi renomeado de "Perfil do Aluno" para
+    "Perfil" (ícone bi-person-circle) e movido para a PRIMEIRA posição da lista NAV_ITEMS
+    (no alto do menu lateral).
+  - TÍTULO (src/pages/StudentProfilePage.jsx): o cabeçalho da página agora exibe "Perfil".
+  - EDIÇÃO DO PERFIL (src/pages/StudentProfilePage.jsx): o modal "Editar Meu Perfil" agora
+    possui campos de Nome, E-mail, Senha de acesso (opcional - em branco mantém a atual) e
+    Foto (URL).
+    * Validações: nome obrigatório, e-mail em formato válido e não duplicado (checagem na
+      lista de usuários), senha com mínimo de 6 caracteres quando informada.
+    * Salvar via dataService.atualizarUsuario (nome, email, senha e avatar); a senha só é
+      enviada se preenchida. Atualiza usuário logado no contexto e a lista de usuários.
+  - Build validado (npm run build - sucesso, 130 módulos transformados). Sem novas
+    dependências. Todas as alterações concluídas e verificadas.
+
+  RESTA FAZER: Nenhuma. Todas as fases concluídas.
+
+[2026-09-18] PREPARAÇÃO DA MIGRAÇÃO MOCK -> SUPABASE (estrutura/scripts criados) ✔
+  - OBSERVAÇÃO: NÃO executada a migração ainda; apenas preparada a estrutura e os
+    scripts definitivos (engenharia reversa dos mocks conforme Migration_preparation.md).
+  - SQL DDL (supabase/migrations/0001_schema.sql):
+    * Extensões: pgcrypto (gen_random_uuid).
+    * ENUMs: user_papel, tarefa_prioridade, tarefa_status, tarefa_estimativa, atividade_tipo.
+    * Tabelas (11): turmas, usuarios, equipes, equipe_membros, projetos, projeto_equipes,
+      tarefas, checklists, historico_atividades, daily_registers, historico_acoes (auditoria).
+    * Normalização 3FN: equipes.membros -> equipe_membros; projetos.equipes_ids ->
+      projeto_equipes; tarefas.checklists -> checklists.
+    * Triggers: set_updated_at (todas c/ updated_at), on_auth_user_created (perfil ao criar
+      usuário no Auth), audit_acao (auditoria automática em historico_acoes).
+    * RLS habilitada em todas as tabelas + policies por perfil (professor/gestor vs aluno
+      limitado à própria equipe via equipes_do_uid), conforme permissions.js.
+    * Índices de FK e consultas (turma, equipe, projeto, aluno, status/posicao, daily).
+  - SQL SEED (supabase/migrations/0002_seed.sql):
+    * Dados fiéis ao mockData.js com IDs determinísticos (turmas, 7 usuários via auth.users
+      + trigger, 2 equipes, membros multi-turma, 2 projetos, 10 tarefas, 12 checklists,
+      10 historico_atividades, 5 daily_registers).
+  - INFRA FRONT-END (hook de migração, sem trocar o comportamento sem env):
+    * Criado src/services/supabaseClient.js (createClient + setupSupabase chamando
+      dataService.setSupabase); main.jsx invoca setupSupabase() de forma guardada.
+    * Criado .env.example (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).
+    * .gitignore atualizado (ignora .env / .env.local).
+  - BUILD VALIDADO: npm run build - sucesso (174 módulos). Sem novas dependências.
+  - PRÓXIMA ETAPA (execução da migração, quando desejada):
+    * Aplicar 0001_schema.sql e 0002_seed.sql no Supabase (SQL Editor / supabase db push).
+    * Preencher .env com as credenciais reais do projeto.
+    * Validar políticas RLS e o fluxo de login (auth) em cada tela conforme checklist do
+      Migration_preparation.md (itens: tabelas, ENUMs, triggers, policies, módulos).
+
+
+-------------------------------------------------------------------------------
+[2026-09-19] FASES DE ACESSO (DEMO / CONEXÃO / CONECTADO) - STATUS DAS AÇÕES
+-------------------------------------------------------------------------------
+- .env criado: VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY (e VITE_DEMO_MODE=false).
+- CONEXÃO VALIDADA (somente-leitura):
+  * GET /auth/v1/health  -> 401 (esperado, exige autenticação).
+  * GET /rest/v1/ com chave anon -> anteriormente 401; agora 200 após criação das tabelas.
+  * GET /rest/v1/turmas?limit=1 e /rest/v1/usuarios?limit=1 -> HTTP 200, resposta [].
+  * Observação RLS: tabelas têm RLS restrita a 'authenticated'; consulta com chave anon
+    (role 'anon') conecta e responde 200, mas NÃO expõe linhas (por isso []). Não é falha.
+
+- FASE 1 (Login reestruturado)........: IMPLEMENTADA ✔ (2026-09-21)
+  * Abas Entrar/Cadastrar removidas; LoginPage reescrita com seletor de modo:
+    'inicio' (3 cartões de entrada) | 'demo' | 'conexao' | 'conectado'.
+  * MODO DEMONSTRAÇÃO: entrada direta por perfil (Professor carlos@escola.com /
+    Aluno joao@aluno.com) sem digitar senha; Cadastro mantido exclusivamente no
+    modo demo (formulário expansível "Cadastrar novo usuário (demo)").
+  * supabaseClient.js: DEMO_MODE (VITE_DEMO_MODE), isDemoForced(),
+    isSupabaseDisponivel(), entrarModoDemo(), entrarModoConectado();
+    setupSupabase() agora respeita VITE_DEMO_MODE=true (não ativa o Supabase).
+
+- FASE 2 (Teste de Conexão Supabase).: IMPLEMENTADA ✔ (2026-09-21)
+  * testarConexao() criada em supabaseClient.js (somente-leitura): valida
+    variáveis do .env, GET /auth/v1/health (401 esperado) e GET /rest/v1/turmas
+    e /rest/v1/usuarios (200 com RLS ocultando linhas para anon).
+  * UI de teste na tela 'conexao' (LoginPage): exibe URL/VITE_DEMO_MODE, botão
+    "Testar Conexão" com spinner, log de etapas (✓/✗) na tela + console.info,
+    e atalho "Ir para o Modo Conectado" quando o teste passa e o Supabase está
+    disponível; aviso quando VITE_DEMO_MODE=true bloqueia o modo conectado.
+
+- FASE 3 (Modo Conectado)...........: IMPLEMENTADA ✔ (2026-09-21)
+  * dataService.autenticarSupabase(): auth real via supabase.auth.signInWithPassword
+    + carregamento do perfil na tabela 'usuarios' (RLS authenticated); fallback
+    com dados do auth.users se o perfil não existir.
+  * dataService.sairSupabase(): supabase.auth.signOut() chamado no logout (App.jsx).
+  * Tela 'conectado' (LoginPage): formulário e-mail/senha usando Supabase Auth.
+  * VITE_DEMO_MODE avaliado: true força mocks (modo conectado indisponível);
+    false permite alternar demo/conectado pela tela inicial.
+  * App.jsx: após login, refreshAll() recarrega os dados na fonte do modo
+    escolhido (mock ou Supabase com sessão autenticada).
+  * Build validado (npm run build - sucesso, 174 módulos) e servidor dev
+    respondendo HTTP 200 em http://localhost:5173.
+-------------------------------------------------------------------------------
+
+[2026-09-21] DIAGNÓSTICO - LOGIN MODO CONECTADO "SENHA INVÁLIDA" (carlos@escola.com)
+  - SINTOMA: login no Modo Conectado com carlos@escola.com / 123456 retornava
+    "E-mail ou senha inválidos".
+  - TESTE DIRETO NA API (fora do app): POST /auth/v1/token?grant_type=password
+    retornou HTTP 400 {"error_code":"invalid_credentials"} para carlos@escola.com
+    E para joao@aluno.com. Ou seja: NÃO é bug do front-end — o Supabase Auth
+    não reconhece esses usuários (seed 0002_seed.sql não aplicado no auth.users
+    ou senhas divergentes).
+  - AÇÕES NO CÓDIGO:
+    * dataService.autenticarSupabase() agora exibe a causa real do erro do
+      Supabase (invalid_credentials / email_not_confirmed / mensagem original)
+      em vez da mensagem genérica.
+    * Criado supabase/verificar_seed.sql: script de verificação para rodar no
+      SQL Editor (lista auth.users, perfis em public.usuarios e testa o hash
+      da senha do professor) com instruções de correção.
+  - CORREÇÃO (lado Supabase): abrir o SQL Editor do projeto e executar o script
+    supabase/migrations/0002_seed.sql completo. Para confirmar antes, rodar
+    supabase/verificar_seed.sql. Alternativa manual: Authentication > Users >
+    "Add user" (carlos@escola.com / 123456, Auto Confirm = ON).
+  - Build validado (npm run build - sucesso).
+-------------------------------------------------------------------------------
+
+[2026-09-21] CORREÇÃO DO SEED (0002_seed.sql) - ERRO FK equipe_membros ✔
+  - SINTOMA: ao rodar o seed, erro 23503: "insert or update on table
+    equipe_membros violates foreign key constraint equipe_membros_aluno_id_fkey
+    - Key (aluno_id)=(00000000-...-0002) is not present in table usuarios".
+  - CAUSA RAIZ: o seed dependia 100% do trigger on_auth_user_created para criar
+    os perfis em public.usuarios. Em reexecuções (ou restos de tentativas
+    anteriores), o "on conflict (id) do nothing" do insert em auth.users ignora
+    o INSERT -> o trigger NÃO dispara -> usuarios fica vazio -> a FK de
+    equipe_membros quebra.
+  - CORREÇÃO aplicada em supabase/migrations/0002_seed.sql (reescrever e rodar
+    o arquivo INTEIRO de uma vez no SQL Editor):
+    * Seção 0 (nova) - LIMPEZA IDEMPOTENTE: apaga restos de execuções
+      anteriores (delete em auth.users por e-mail -> cascata em usuarios,
+      equipe_membros, daily_registers e historico_atividades; deletes por ID
+      determinístico em tarefas, projetos, equipes, turmas).
+    * Seção 2.1 (nova) - REDE DE SEGURANÇA: insert em public.usuarios lendo
+      diretamente de auth.users (mesmo mapeamento do trigger handle_new_user).
+      Funciona mesmo se o trigger não existir; se o trigger já criou o perfil,
+      o "on conflict (id) do nothing" apenas ignora.
+    * Ordem reforçada: turmas -> auth.users -> usuarios -> equipes/membros ->
+      projetos -> tarefas -> checklists -> historico -> daily.
+    * Seção 8 (nova) - SELECT de verificação final com contadores esperados
+      (7 auth_users, 7 usuarios, 3 turmas, 2 equipes, 6 membros, 2 projetos,
+      10 tarefas) para confirmar o sucesso na própria saída do SQL Editor.
+  - RESULTADO: seed pode ser executado/repetido quantas vezes for sem erro de
+    FK, e o login do Modo Conectado (carlos@escola.com / 123456) passa a
+    existir no Auth logo após a execução.
+-------------------------------------------------------------------------------
+
+[2026-09-21] CORREÇÃO DE LOGIN PÓS-SEED - "Invalid login credentials" ✔
+  - SINTOMA: mesmo com o seed executado e a verificação OK (7 usuários), o
+    login no Modo Conectado continuava falhando com invalid_credentials.
+    Confirmado com teste direto: POST /auth/v1/token?grant_type=password ->
+    HTTP 400 invalid_credentials.
+  - CAUSA RAIZ: nas versões atuais do Supabase/GoTrue, o login por senha exige
+    uma identidade do provider 'email' em auth.identities. O seed criava os
+    usuários apenas em auth.users -> sem identidade, o Auth não reconhece o
+    login mesmo com e-mail confirmado e senha correta.
+  - CORREÇÕES:
+    * supabase/migrations/0002_seed.sql: nova Seção 3 insere em
+      auth.identities (provider 'email', provider_id = id do usuário,
+      identity_data com sub+email) para os 7 usuários; verificação final
+      passou a contar identities (esperado 7); seções renumeradas.
+    * Criado supabase/corrigir_login.sql: correção RÁPIDA para quem já rodou
+      o seed - cria apenas as identidades que faltam (select em auth.users
+      sem identidade 'email'), seguro para reexecutar.
+  - COMO APLICAR: rodar supabase/corrigir_login.sql no SQL Editor (rápido)
+    OU reexecutar o 0002_seed.sql completo (já contém a correção). Após isso,
+    testar login: carlos@escola.com / 123456.
+-------------------------------------------------------------------------------
+
+[2026-09-21] PLANO PENDENTE - SEED COMPLETO p/ MODO CONECTADO (execução ADIADA)
+  - MOTIVO DO ADIAMENTO: lentidão no ambiente durante a sessão; as ações abaixo
+    foram planejadas e detalhadas, mas NÃO executadas. Executar em outra ocasião.
+  - SOLICITAÇÃO DO USUÁRIO: o seed atual não corresponde a uma população
+    completa dos dados. No MODO CONECTADO, TUDO o que está mockado deve aparecer
+    como um conjunto completo no banco, de forma que TODAS as telas tenham dados
+    reais e com RELAÇÃO entre as tabelas: Perfil, Turmas & Alunos, Equipes,
+    Projetos, Backlog do Projeto, Dashboard, Kanban, Radar de Engajamento e
+    Daily Register.
+
+  ETAPA 1 - REESCREVER supabase/migrations/0002_seed.sql
+    Objetivo: espelhar 100% o mockData.js e garantir dados reais em todas as
+    telas no modo conectado, preservando as correções acumuladas de login.
+    Ações:
+    * Manter a limpeza idempotente da Seção 0 (reexecução sem erro) e ADICIONAR
+      a remoção do usuário residual de diagnóstico 'teste.diag@exemplo.com'
+      (criado via API nos testes; caso contrário aparece na lista de alunos).
+    * Manter todas as blindagens já incorporadas: instance_id obrigatório em
+      auth.users, auth.identities com provider 'email' e identity_data no
+      formato GoTrue v2 (sub/email/email_verified/phone_verified),
+      normalização NULL -> '' das colunas de token e rede de segurança de
+      perfis em public.usuarios (independente do trigger).
+    * Manter fiel ao mock: 3 turmas, 7 usuários, 2 equipes (6 membros),
+      2 projetos (projeto_equipes), 10 tarefas com status em todas as
+      4 colunas do Kanban, 12 checklists, 10 historico_atividades,
+      5 daily_registers.
+    * COMPLEMENTAÇÃO mínima (marcada como "cobertura de telas", não altera o
+      mock; documentar no cabeçalho do script):
+      1) +2 tarefas em status 'backlog' SEM aluno atribuído (uma por equipe):
+         hoje k9/k10 têm aluno_id preenchido, o que deixa a seção
+         "Backlog Disponível" do Perfil vazia para todos os alunos; com
+         aluno_id NULL as duas equipes passam a ter itens assumíveis.
+      2) +3 daily_registers (u3, u6, u7) para que a visão do professor no
+         Daily Register tenha check-ins de TODOS os alunos das equipes.
+      3) +7 historico_atividades cobrindo os alunos sem histórico (u6, u7)
+         e exercitando os tipos do enum ainda não usados no seed:
+         'assumiu_tarefa' (u5) e 'aprovou_conclusao' (u1 - professor).
+         Resultado esperado: Radar de Engajamento preenchido p/ todos.
+    * Contadores esperados na verificação final: auth_users=7, identities=7,
+      usuarios=7, turmas=3, equipes=2, equipe_membros=6, projetos=2,
+      tarefas=12, checklists=14, historico=17, daily_registers=8.
+    * IDs determinísticos novos: tarefas 88888888-...-0011/0012; checklists
+      99999999-...-0013/0014; historico aaaaaaaa-...-0011..0017; daily
+      bbbbbbbb-...-0006..0008. Ampliar os ranges de limpeza (Seção 0) para
+      cobri-los.
+
+  ETAPA 2 - AJUSTAR supabase/migrations/0001_schema.sql (idempotência)
+    Objetivo: permitir reaplicar o schema no SQL Editor sem erros (hoje a
+    2ª execução quebra em create type/table/trigger/policy).
+    Ações:
+    * create type -> envolver em bloco DO com "if not exists (pg_type)".
+    * create table -> create table if not exists (sem alterar colunas).
+    * funções -> manter create or replace.
+    * triggers -> drop trigger if exists <nome> on <tabela> antes do create.
+    * policies -> drop policy if exists "<nome>" on <schema.tabela> antes do
+      create.
+    * índices -> create index if not exists.
+    * Não alterar ENUMs, tabelas, FKs, RLS nem regras de negócio (só a forma
+      de criação); o schema lógico permanece idêntico.
+
+  ETAPA 3 - VALIDAÇÃO
+    * Executar npm run build (deve passar sem erros).
+    * (Quando aplicado no Supabase) rodar 0001_schema.sql e 0002_seed.sql
+      inteiros no SQL Editor, conferir os contadores da verificação final e
+      testar o login conectado: carlos@escola.com / 123456.
+
+  ETAPA 4 - REGISTRO NO LOG
+    * Ao concluir a execução, registrar a entrada [data] SEED COMPLETO +
+      SCHEMA IDEMPOTENTE - EXECUTADO com os resultados (build, contadores e
+      telas validadas) e fechar este item pendente.
+-------------------------------------------------------------------------------
+
+[2026-09-22] SEED COMPLETO + SCHEMA IDEMPOTENTE - PLANO PENDENTE EXECUTADO ✔
+  - Este item fecha o "PLANO PENDENTE - SEED COMPLETO p/ MODO CONECTADO"
+    (2026-09-21, execução adiada). ETAPAS 1-4 executadas nesta data.
+
+  ETAPA 1 - supabase/migrations/0002_seed.sql REESCRITO (cobertura de telas):
+    * Cabeçalho documenta a complementação mínima (não altera o mock).
+    * Seção 0 (limpeza) ampliada: remove usuário residual
+      'teste.diag@exemplo.com'; ranges de delete cobrem tarefas 0001..0012,
+      checklists 0001..0014, historico 0001..0017 e daily 0001..0008.
+    * Blindagens preservadas: instance_id, auth.identities (provider email,
+      identity_data GoTrue v2), normalização NULL->'' das colunas de token e
+      rede de segurança de perfis em public.usuarios (independente do trigger).
+    * +2 tarefas 'backlog' SEM aluno (0011 Alpha Tech / 0012 Code Wave):
+      alimenta a seção "Backlog Disponível" do Perfil (itens assumíveis).
+    * +2 checklists (0013/0014) referentes às novas tarefas.
+    * +7 historico_atividades (0011..0017): cobre alunos u6/u7 sem histórico e
+      exercita os tipos do enum ainda não usados: 'assumiu_tarefa' (u5) e
+      'aprovou_conclusao' (u1 - professor) -> Radar preenchido p/ todos.
+    * +3 daily_registers (u3, u6, u7): visão do professor no Daily Register
+      cobre TODOS os alunos das duas equipes.
+    * Contadores esperados na verificação final (Seção 10): auth_users=7,
+      identities=7, usuarios=7, turmas=3, equipes=2, equipe_membros=6,
+      projetos=2, tarefas=12, checklists=14, historico=17, daily_registers=8.
+
+  ETAPA 2 - supabase/migrations/0001_schema.sql (idempotência): JÁ APLICADA ✔
+    * Confere o plano: ENUMs em bloco DO com "if not exists (pg_type)",
+      create table if not exists, funções create or replace, triggers com
+      drop trigger if exists antes do create, policies com drop policy if
+      exists antes do create, índices com create index if not exists.
+    * Schema lógico inalterado (ENUMs, tabelas, FKs, RLS e grants intactos).
+
+  ETAPA 3 - VALIDAÇÃO:
+    * npm run build - SUCESSO (174 módulos transformados, built in ~4s).
+
+  ETAPA 4 - REGISTRO: esta entrada fecha o item pendente de 2026-09-21.
+
+  COMO APLICAR NO SUPABASE (execução no SQL Editor, nesta ordem):
+    1) supabase/migrations/0001_schema.sql (seguro reexecutar - idempotente);
+    2) supabase/migrations/0002_seed.sql (rodar o arquivo INTEIRO de uma vez);
+    3) conferir os contadores da Seção 10 do seed (valores esperados acima);
+    4) testar login no Modo Conectado: carlos@escola.com / 123456.
+
+--------------------------------------------------------------------------------
+[2026-09-23] PLANO DE ALTERAÇÕES SOLICITADAS PELO USUÁRIO - FASES 12 A 16
+--------------------------------------------------------------------------------
+ORIGEM: engenharia reversa de LOG.txt, CORES.md, PROJ.md,
+PROJETO_REESTRUTURADO.md e PROJNew.md + leitura do código-fonte (src/).
+
+CAUSA RAIZ COMUM DOS BUGS DE "EDITAR" (Equipes, Projetos, Backlog):
+  Os modais (TeamBuilderModal, ProjectForm, BacklogAssigner) inicializam o
+  estado com useState(...) apenas na MONTAGEM do componente. Como o modal
+  permanece montado (controlado pela prop `show`), o estado NÃO é recriado
+  ao abrir para editar outro item -> o formulário exibe dados vazios ou de
+  outra entidade. CORREÇÃO: `key` no modal baseado no id do item editado
+  (remonta o componente e reinicia o estado) + sincronização de estado.
+
+ETAPAS (executar UMA por vez, validando build e registrando no LOG.txt
+ANTES de seguir adiante):
+
+  [FASE 12] - TURMAS & ALUNOS:
+    12.1 Ao salvar no botão "Salvar" do modal Nova Turma: refresh da tela
+         (refreshAll + atualização imediata do estado setTurmas).
+    12.2 Novo botão "Editar Turma" (bi-pencil) em cada card de turma, com
+         modal pré-preenchido (nome, código, cor) -> atualizarTurma.
+    12.3 Criar arquivo-exemplo de 5 linhas de importação (CSV) para o
+         botão "Importar Alunos" (exemplo_importacao_alunos.csv).
+    -> VALIDAÇÃO: npm run build OK + registrar no LOG.txt.
+
+  [FASE 13] - EQUIPES & GRUPOS:
+    13.1 Corrigir botão "Editar" ao lado do nome da equipe: deve abrir o
+         modal de EDIÇÃO da respectiva equipe (mesmo comportamento do
+         Excluir). Correção via `key={editEquipe?.id || 'novo'}` +
+         sincronização de estado no TeamBuilderModal.
+    -> VALIDAÇÃO: npm run build OK + registrar no LOG.txt.
+
+  [FASE 14] - TELA DE PROJETOS:
+    14.1 Ao criar/editar projeto: opção "Selecionar todas as equipes" +
+         seleção individual (já existente) das equipes participantes.
+    14.2 Corrigir botão "Editar" do projeto (mesma causa raiz; key no
+         ProjectForm).
+    -> VALIDAÇÃO: npm run build OK + registrar no LOG.txt.
+
+  [FASE 15] - BACKLOG DO PROJETO:
+    15.1 Corrigir botão "Editar" da tarefa: deve trazer o nome/dados da
+         tarefa selecionada (key no BacklogAssigner + sincronização).
+    -> VALIDAÇÃO: npm run build OK + registrar no LOG.txt.
+
+  [FASE 16] - TELA GERENCIAR USUÁRIOS (NOVA):
+    16.1 Nova página UsersPage: listagem de usuários com filtro;
+         edição de perfil de acesso (papel: gestor/professor/aluno),
+         nome, e-mail; exclusão de usuário; restrito a gestor/professor.
+    16.2 Rota em App.jsx + item "Usuários" na Sidebar (onlyProfessor).
+    16.3 Reaproveita dataService.atualizarUsuario / removerUsuario.
+    -> VALIDAÇÃO: npm run build OK + registrar no LOG.txt.
+
+STATUS DO PLANO: FASE 12 CONCLUÍDA; FASE 13 em andamento.
+--------------------------------------------------------------------------------
+
+[2026-09-23] FASE 12 - TURMAS & ALUNOS (REFRESH + EDITAR + EXEMPLO IMPORT) ✔
+  - 12.1 REFRESH AO SALVAR (src/pages/StudentsPage.jsx):
+    * salvarTurma() agora atualiza o estado local (setTurmas) imediatamente
+      com a turma criada/atualizada e em seguida chama await refreshAll()
+      para recarregar a tela e exibir a turma criada.
+    * Feedback de sucesso mantido ("Turma criada com sucesso!" /
+      "Turma atualizada com sucesso!").
+  - 12.2 BOTÃO EDITAR TURMA:
+    * Novo botão lápis (theme-toggle, bi-pencil) no card de cada turma,
+      visível apenas para professor/gestor, ao lado do nome da turma.
+    * abrirEditarTurma(turma) pré-carrega o modal com nome, código de
+      acesso e cor temática; salvarTurma usa ds.atualizarTurma(id, dados).
+    * Modal com key={editTurma?.id || 'nova-turma'} e título dinâmico
+      ("Editar Turma" / "Nova Turma"); Cancelar limpa o estado de edição.
+  - 12.3 ARQUIVO EXEMPLO DE IMPORTAÇÃO (NOVO):
+    * Criado exemplo_importacao_alunos.csv na raiz do projeto, com 5 linhas
+      (1 cabeçalho + 4 alunos): Nome, Email, Matricula, Turma.
+    * Compatível com o mapeamento automático do ExcelUploader
+      (colunas /nome/i, /mail/i, /matr/i).
+  - VALIDAÇÃO: npm run build - SUCESSO (174 módulos).
+  -> VISUALIZÁVEL: turma criada aparece na tela após Salvar; botão editar
+     em cada card; CSV de exemplo pronto para o botão "Importar Alunos".
+
+STATUS DO PLANO: FASE 12 CONCLUÍDA; FASE 13 em andamento.
+--------------------------------------------------------------------------------
+
+[2026-09-23] FASE 13 - EQUIPES & GRUPOS (BOTÃO EDITAR CORRIGIDO) ✔
+  - SINTOMA: o botão lápis "Editar" ao lado do nome da equipe não abria a
+    edição da equipe clicada (modal vazio ou com dados de outra/primeira
+    equipe). O botão "Excluir" ao lado funcionava corretamente.
+  - CAUSA RAIZ: TeamBuilderModal inicializava o estado (nome, cor, logo,
+    github, membros) com useState(...) apenas na montagem; como o modal
+    permanece montado (controlado por `show`), o estado não era recriado
+    ao abrir para editar outra equipe.
+  - CORREÇÕES:
+    * src/pages/TeamsPage.jsx: modal agora recebe
+      key={editEquipe?.id || 'nova-equipe'} — a troca de key REMONTA o
+      componente e reinicia o estado com a equipe correta; onClose também
+      limpa editEquipe.
+    * src/components/teams/TeamBuilderModal.jsx: novo useEffect
+      ([show, equipeEdit]) que ressincroniza nome, cor, logo, github,
+      membros, filtro e erro sempre que o modal abre — dupla blindagem.
+  - VALIDAÇÃO: npm run build - SUCESSO (174 módulos).
+  -> VISUALIZÁVEL: clicar no lápis de qualquer equipe abre "Editar Equipe"
+     com os dados da respectiva equipe (mesmo comportamento do Excluir).
+
+STATUS DO PLANO: FASE 12-13 CONCLUÍDAS; FASE 14 em andamento.
+--------------------------------------------------------------------------------
+
+[2026-09-23] FASE 14 - TELA DE PROJETOS (TODAS AS EQUIPES + EDITAR CORRIGIDO) ✔
+  - 14.1 OPÇÃO "TODAS AS EQUIPES" NA CRIAÇÃO/EDIÇÃO (ProjectForm.jsx):
+    * Novo botão "Todas as equipes" no cabeçalho da seção de equipes:
+      seleciona de uma vez todas as equipes participantes; quando todas já
+      estão selecionadas, o botão vira "Limpar todas".
+    * Seleção individual por badges mantida (toggleEquipe).
+    * Contador auxiliar: "X de Y equipe(s) selecionada(s)."
+  - 14.2 BOTÃO EDITAR DO PROJETO CORRIGIDO (mesma causa raiz da Fase 13):
+    * src/pages/ProjectsPage.jsx: ProjectForm recebe
+      key={editProjeto?.id || 'novo-projeto'} (remonta ao trocar o item);
+      onClose limpa editProjeto.
+    * src/components/projects/ProjectForm.jsx: useEffect ([show,
+      projetoEdit]) ressincroniza nome, descrição, datas, recursos,
+      equipes_ids e erro ao abrir o modal — o editar abre com os dados do
+      respectivo projeto.
+  - VALIDAÇÃO: npm run build - SUCESSO (174 módulos).
+  -> VISUALIZÁVEL: criar/editar projeto com "Todas as equipes" em 1 clique;
+     lápis do projeto abre "Editar Projeto" com os dados corretos.
+
+STATUS DO PLANO: FASE 12-14 CONCLUÍDAS; FASE 15 em andamento.
+--------------------------------------------------------------------------------
+
+[2026-09-23] FASE 15 - BACKLOG DO PROJETO (EDITAR TAREFA CORRIGIDO) ✔
+  - SINTOMA: ao clicar em "Editar" de uma tarefa no Backlog, o modal
+    abria com o título/dados de OUTRA tarefa (ou vazio), não da tarefa
+    clicada — mesma causa raiz das Fases 13/14.
+  - CORREÇÕES:
+    * src/pages/BacklogPage.jsx: BacklogAssigner recebe
+      key={tarefaEdit?.id || 'nova-tarefa'} (remonta por tarefa);
+      onClose limpa tarefaEdit.
+    * src/components/projects/BacklogAssigner.jsx: useEffect
+      ([show, tarefaEdit, projeto]) ressincroniza título, descrição,
+      prioridade, estimativa, checklists, equipe, aluno responsável, prazo
+      e erro ao abrir — o modal sempre mostra a tarefa selecionada.
+  - VALIDAÇÃO: npm run build - SUCESSO (174 módulos).
+  -> VISUALIZÁVEL: lápis de qualquer linha da tabela abre "Editar Tarefa"
+     com o nome e os dados da respectiva tarefa.
+
+STATUS DO PLANO: FASE 12-15 CONCLUÍDAS; FASE 16 em andamento.
+--------------------------------------------------------------------------------
+
+[2026-09-23] FASE 16 - TELA GERENCIAR USUÁRIOS (NOVA) ✔
+  - SOLICITAÇÃO: tela para o gestor editar perfis de acesso (professor,
+    aluno, gestor), editar ou excluir usuários do sistema.
+  - NOVA PÁGINA src/pages/UsersPage.jsx:
+    * Listagem de todos os usuários em tabela: nome, e-mail, badge do
+      perfil de acesso, turma e ações (editar/excluir).
+    * Filtros: busca por nome/e-mail + seletor de perfil
+      (Todos | Gestor | Professor | Aluno).
+    * MODAL EDITAR USUÁRIO: nome, e-mail, PERFIL DE ACESSO (select
+      gestor/professor/aluno) e nova senha opcional (mín. 6 caracteres).
+      Validações: nome obrigatório, e-mail válido e não duplicado.
+      Salva via dataService.atualizarUsuario + refreshAll; se o usuário
+      logado editar o próprio perfil, atualiza também o usuarioLogado.
+    * EXCLUSÃO: confirmação com nome do alvo; bloqueia excluir o próprio
+      usuário logado (botão desabilitado + checagem no salvamento).
+    * ACESSO: restrito a professor/gestor (tela de aviso "Acesso restrito"
+      caso aluno tente acessar via rota direta).
+  - ROTEAMENTO:
+    * App.jsx: import da UsersPage + rota 'users' no mapa PAGES.
+    * Sidebar.jsx: item "Usuários" (bi-person-gear) com onlyProfessor
+      (visível apenas para professor/gestor), no fim do menu.
+  - VALIDAÇÃO: npm run build - SUCESSO (175 módulos; +1 módulo UsersPage).
+  -> VISUALIZÁVEL: menu "Usuários" -> tabela com filtros, edição de perfil
+     de acesso e exclusão de usuários.
+
+STATUS DO PLANO: FASES 12 A 16 CONCLUÍDAS (TODAS AS ALTERAÇÕES
+SOLICITADAS PELO USUÁRIO EXECUTADAS E VALIDADAS COM npm run build).
+--------------------------------------------------------------------------------
+
+[2026-09-23] CORREÇÃO - IMPORTAÇÃO DE ALUNOS: "Could not find the 'matricula'
+             column of 'usuarios'" (MODO CONECTADO) ✔
+  - SINTOMA: ao importar planilha na tela Turmas & Alunos no Modo Conectado:
+    "Erro ao importar alunos: Could not find the 'matricula' column of
+    'usuarios' in the schema cache".
+  - CAUSA RAIZ:
+    * excelService.gerarPlanilhaAlunos enviava `matricula` e `senha_padrao`;
+    * a tabela public.usuarios (0001_schema.sql) NÃO possui essas colunas;
+    * o id de usuarios referencia auth.users (FK) — um insert direto de
+      aluno importado falharia depois da coluna (perfil sem Auth);
+    * em 0002_seed.sql a matricula/papel trafegavam só no raw_user_meta_data.
+  - CORREÇÕES:
+    1) NOVO SCRIPT supabase/migrations/0003_importacao_alunos.sql:
+       * alter table public.usuarios add column if not exists matricula text;
+       * função SECURITY DEFINER importar_aluno(nome, email, turma_id,
+         matricula, senha='Mudar123'): cria auth.users (hash bcrypt),
+         auth.identities provider 'email' (login funciona), dispara o
+         trigger handle_new_user e grava turma_id + matricula no perfil;
+       * grant execute apenas para role authenticated.
+    2) dataService.criarUsuario (Modo Conectado):
+       * importação/cadastro de aluno agora chama o RPC importar_aluno;
+       * se a RPC não existir, lança erro claro instruindo a rodar o 0003;
+       * fallback de insert usa somente colunas que existem em usuarios
+         (nome, email, senha, papel, funcao_principal, avatar_url,
+         turma_id, primeiro_acesso) — nunca mais matricula/senha_padrao.
+    3) excelService: mantém matricula no objeto gerado e envia também
+       `senha: 'Mudar123'` (campo real do mock/usuarios).
+  - COMO APLICAR (obrigatório antes de importar no Conectado):
+    rodar supabase/migrations/0003_importacao_alunos.sql INTEIRO no
+    SQL Editor do Supabase; em seguida repetir a importação.
+  - VALIDAÇÃO: npm run build - SUCESSO (175 módulos).
+--------------------------------------------------------------------------------
+
+[2026-09-23] TURMAS & ALUNOS - ÍCONE EXCLUIR TURMA REINCLUÍDO ✔
+  - SOLICITAÇÃO: o ícone de excluir turma sumiu do card de turma;
+    incluir novamente.
+  - ALTERAÇÃO (src/pages/StudentsPage.jsx):
+    * Botão lápis (Editar) e botão lixeira (Excluir, text-danger) lado a
+      lado no cabeçalho de cada card de turma, só para professor/gestor.
+    * Exclusão com modal de confirmação (nome da turma + Cancelar/Excluir).
+    * removerTurma(): chama ds.removerTurma(id), atualiza o estado local
+      (setTurmas filter), feedback "Turma excluída com sucesso!" e
+      refreshAll().
+  - VALIDAÇÃO: npm run build - SUCESSO (175 módulos).
+
+[2026-09-23] FASE 17 - REALOCAR ALUNO DE TURMA + EXCLUIR TURMA COM ALUNOS ✔
+  - SOLICITAÇÃO:
+    1) Permitir trocar a turma do aluno no modal Editar da tela Usuários
+       (inclusive realocar órfãos de turma excluída);
+    2) Ao excluir uma turma, perguntar se deseja excluir também os alunos
+       da turma e suas ligações (daily registers, tarefas alocadas,
+       histórico, equipes, etc.).
+  - ALTERAÇÕES:
+    1) src/pages/UsersPage.jsx:
+       * form ganhou turma_id; abrirEditar inicializa com user.turma_id;
+       * seletor "Turma" no modal só quando papel === 'aluno' (com opção
+         "— Sem turma —" para órfãos);
+       * salvarEdicao envia turma_id (null quando vazio) junto com nome/
+         email/papel/senha.
+    2) src/pages/StudentsPage.jsx:
+       * checkbox no modal de exclusão de turma: "Também excluir os N
+         aluno(s) desta turma e todas as suas ligações (...)" com preview
+         dos nomes;
+       * se marcado: removerTurma(id, { excluirAlunos: true }) + remove
+         alunos do estado local + feedback com contagem;
+       * se desmarcado: só turma sai; alunos ficam "Sem turma" (feedback
+         dizendo que podem ser realocados em Gerenciar Usuários).
+    3) src/services/dataService.js:
+       * NOVA removerUsuarioCompleto(id): RPC excluir_usuario_completo
+         (quando existir) ou fallback que limpa daily_registers,
+         equipe_membros, historico_atividades, tarefas e o perfil;
+       * removerUsuario agora usa removerUsuarioCompleto (exclusão de
+         usuário em Usuários também limpa ligações);
+       * removerTurma(id, { excluirAlunos }): se true, chama
+         removerUsuarioCompleto para cada aluno da turma antes de apagar
+         a turma; mock remove daily/histórico/membros de equipe/tarefas
+         também.
+    4) NOVO supabase/migrations/0004_excluir_usuario_completo.sql:
+       * RPC SECURITY DEFINER excluir_usuario_completo(p_usuario_id):
+         valida is_professor() + não auto-excluir; remove tarefas,
+         daily_registers, historico, equipe_membros, auth.users (cascata
+         para public.usuarios) e fallback de perfil órfão;
+       * grant execute apenas para authenticated.
+  - COMO APLICAR (Modo Conectado):
+    rodar supabase/migrations/0004_excluir_usuario_completo.sql no SQL
+    Editor do Supabase; se ainda não rodou o 0003, rodá-lo também.
+  - VALIDAÇÃO: npm run build - SUCESSO (175 módulos).
+
+[2026-09-23] CORREÇÃO - PERFIL DO ALUNO SEM "MEUS PROJETOS" ✔
+  - SINTOMA: login de aluno em equipe (papel Líder) e o card "Meus
+    Projetos" da tela Perfil ficava vazio ("Você ainda não está
+    vinculado a nenhum projeto").
+  - CAUSA RAIZ (combinada):
+    1) AppContext.refreshAll usava Promise.all — se UMA listagem falhasse
+       (RLS/rede), NENHUM estado era atualizado (equipes/projetos
+       permaneciam []);
+    2) no login, refreshAll era disparado sem await e o Perfil abria com
+       estado ainda vazio;
+    3) StudentProfilePage só considerava a PRIMEIRA equipe do aluno
+       (equipeDoAluno) e só equipes_ids — sem fallback por tarefas
+       atribuídas;
+    4) Kanban travava em projetoId='' se projetos carregassem após a
+       montagem (useState inicial vazio).
+  - CORREÇÕES:
+    * AppContext.jsx: Promise.all -> Promise.allSettled (falha parcial
+      não zera o resto); log de falhas no console;
+    * LoginPage.finalizarLogin: await onLoginSuccess() ANTES de
+      setUsuarioLogado (dados recarregados com a sessão/RLS);
+    * App.jsx: onLoginSuccess = await refreshAll() e só então
+      setActivePage('profile');
+    * StudentProfilePage: considera TODAS as equipes do aluno
+      (equipesDoAluno) + fallback de projetos onde o aluno tem tarefas;
+      botão "Atualizar"; empty state com diagnóstico (equipe, papel,
+      nº de projetos carregados); um único refresh extra na montagem
+      se tudo estiver vazio (sem loop);
+    * permissions.js: novo equipesDoAluno(); podeVerProjeto e
+      podeVerTarefa checam todas as equipes do usuário;
+    * KanbanPage: useEffect re-seleciona projeto quando a lista muda;
+      filtro multi-equipe (idsEquipesAluno);
+    * BoardKanban: passaFiltro() aceita idsEquipesAluno (Set) além de
+      equipeFiltro único.
+  - VALIDAÇÃO: npm run build - SUCESSO (175 módulos).
+  -> Verificar no app: entrar como aluno -> Perfil deve listar os
+     projetos da equipe; se vazio, o card mostra equipe/papel e o
+     botão Atualizar (e o console registra falhas parciais de RLS).
+
+
+
+--------------------------------------------------------------------------------
+[2026-09-23] VERS�O FINAL - LOGIN S� CONECTADO + CADASTRO + ADMIN + DEPLOY ?
+--------------------------------------------------------------------------------
+  SOLICITA��O: 1) remover modo demonstra��o e teste de conex�o (deix�-los
+  inativos); na tela final s� login Modo Conectado + cadastrar novo usu�rio;
+  2) mover arquivos de cria��o/docs para pasta ADMIN (ignorada no deploy),
+  mantendo somente LOG.txt na raiz; 3) limpar arquivos n�o �teis;
+  4) preparar Render + GitHub; 5) validar build e registrar s� o conclu�do.
+
+  ETAPA 1 - LOGIN (src/pages/LoginPage.jsx):
+    * UI reduzida a 2 vistas: 'login' (e-mail + senha -> autenticarSupabase)
+      e 'cadastro' (nome, e-mail, papel aluno/professor/gestor, senha x2).
+    * Removidos da UI: cart�es de modo, Modo Demonstra��o e Teste de Conex�o.
+    * finalizarLogin: await onLoginSuccess() ANTES de setUsuarioLogado.
+    * dataService.nova cadastrarUsuarioPublico(): supabase.auth.signUp com
+      metadata nome/papel/funcao_principal/primeiro_acesso; o trigger
+      handle_new_user (0001) grava public.usuarios; trata e-mail duplicado
+      e confirma��o de e-mail.
+    * supabaseClient.js: isSupabaseDisponivel() = !!supabase (sem VITE_DEMO_MODE);
+      entrarModoDemo() e testarConexao() mantidos apenas como stubs DESATIVADOS
+      (exports preservados; nenhum import da UI os usa).
+    * .env / .env.example: removida a linha VITE_DEMO_MODE.
+
+  ETAPA 2 - PASTA ADMIN (cria��o/docs -> ADMIN/, fora do deploy):
+    * Movidos para ADMIN/: PROJ.md, PROJNew.md, PROJETO_REESTRUTURADO.md,
+      CORES.md, Migration_preparation.md, Migration_preparationLog.md,
+      FASE 8.txt + novo ADMIN/DEPLOY.md (passo a passo GitHub + Render).
+    * Movidos para ADMIN/supabase/: scripts de diagn�stico/hotfix
+      (verificar_seed, corrigir_login, diagnostico_*, hotfix_login*).
+    * Raiz do projeto: apenas LOG.txt como arquivo de documenta��o de
+      acompanhamento; supabase/migrations/ permanece (schema oficial).
+    * .gitignore: adicionada regra ADMIN/ (n�o versiona nem deploya).
+
+  ETAPA 3 - LIMPEZA:
+    * Exclu�dos: grok.txt, newapi.txt, dev.log, pasta docs/ vazia.
+    * Mantidos na raiz: package*.json, vite.config.js, index.html, .env,
+      .env.example, .gitignore, render.yaml, exemplo_importacao_alunos.csv,
+      LOG.txt, src/, supabase/migrations/.
+
+  ETAPA 4 - RENDER + GITHUB:
+    * Novo render.yaml (Static Site: build npm install && npm run build,
+      publish dist, envVars VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).
+    * ADMIN/DEPLOY.md com git init/push, configura��o Render e ordem das
+      migrations (0001..0004) + Auto Confirm no Auth.
+    * .env n�o versionado; credenciais s� no .env local e no painel Render.
+
+  ETAPA 5 - VALIDACAO:
+    * npm run build - SUCESSO (175 m�dulos transformados).
+    * Entradas acima registram SOMENTE etapas conclu�das nesta data.
+
+  RAIZ FINAL: ADMIN/ (ignorada), dist/, node_modules/, src/, supabase/,
+  .env, .env.example, .gitignore, exemplo_importacao_alunos.csv,
+  index.html, LOG.txt, package.json, package-lock.json, render.yaml,
+  vite.config.js.
+--------------------------------------------------------------------------------

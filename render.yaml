@@ -1,0 +1,15 @@
+# Render - Static Site (Vite/React)
+# https://dashboard.render.com → New → Static Site
+# Build Command: npm install && npm run build
+# Publish Directory: dist
+services:
+  - type: web
+    name: eduproject-agile
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false

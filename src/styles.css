@@ -1,0 +1,309 @@
+/* ==========================================================================
+   THEME DESIGN TOKENS - Fonte: CORES.MD (DEVBoard / MYwallet)
+   Dark Mode (padrão) + Light Mode
+   ========================================================================== */
+
+:root, [data-theme="dark"] {
+  /* Palette Colors */
+  --color-primary: #1686b9;
+  --color-primary-hover: #126e99;
+  --color-secondary: #14c16e;
+  --color-secondary-hover: #109e5a;
+  --color-slate: #465567;
+  --color-sky: #76bbf8;
+
+  /* Surfaces & Backgrounds */
+  --bg-app: #080e15;
+  --bg-sidebar: #0d1620;
+  --bg-card: #121f2d;
+  --bg-card-hover: #18283a;
+  --bg-input: #0b131c;
+  --bg-badge: #1a2a3a;
+
+  /* Borders & Dividers */
+  --border-color: #1e3044;
+  --border-focus: #1686b9;
+
+  /* Typography */
+  --text-primary: #f0f4f8;
+  --text-secondary: #8c9ba5;
+  --text-muted: #5b6b79;
+  --text-on-primary: #ffffff;
+
+  /* Status Colors */
+  --status-todo: #76bbf8;
+  --status-in-progress: #14c16e;
+  --status-review: #465567;
+  --status-done: #1686b9;
+}
+
+[data-theme="light"] {
+  --color-primary: #12729e;
+  --color-primary-hover: #0e587a;
+  --color-secondary: #0f9b58;
+  --color-secondary-hover: #0c7b46;
+  --color-slate: #5a6b7c;
+  --color-sky: #3b82f6;
+
+  --bg-app: #f4f7fa;
+  --bg-sidebar: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
+  --bg-input: #edf2f7;
+  --bg-badge: #e2e8f0;
+
+  --border-color: #e2e8f0;
+  --border-focus: #12729e;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-on-primary: #ffffff;
+
+  --status-todo: #2563eb;
+  --status-in-progress: #10b981;
+  --status-review: #64748b;
+  --status-done: #0284c7;
+}
+
+/* ==========================================================================
+   BASE
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.app-shell {
+  min-height: 100vh;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 260px;
+  min-height: 100vh;
+  background-color: var(--bg-sidebar);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar .brand-text {
+  color: var(--text-primary);
+}
+
+.sidebar .nav-link {
+  color: var(--text-secondary);
+  border-radius: 8px;
+}
+
+.sidebar .nav-link:hover {
+  background-color: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.sidebar .nav-link.active {
+  background-color: var(--color-primary);
+  color: var(--text-on-primary);
+}
+
+/* Cards */
+.card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 10px;
+}
+
+.card:hover {
+  background-color: var(--bg-card-hover);
+}
+
+/* Inputs */
+.form-control, .form-select {
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.form-control:focus, .form-select:focus {
+  background-color: var(--bg-input);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 0.2rem rgba(22, 134, 185, 0.25);
+  color: var(--text-primary);
+}
+
+.form-control::placeholder {
+  color: var(--text-muted);
+}
+
+/* Tables */
+.table {
+  color: var(--text-primary);
+}
+
+.table-hover tbody tr:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-card-hover);
+}
+
+.table thead th {
+  color: var(--text-secondary);
+  border-bottom-color: var(--border-color);
+}
+
+.table td, .table th {
+  border-color: var(--border-color);
+}
+
+/* Text helpers */
+.text-primary-theme { color: var(--color-primary); }
+.text-secondary-theme { color: var(--color-secondary); }
+.text-slate-theme { color: var(--color-slate); }
+.text-sky-theme { color: var(--color-sky); }
+.text-muted-theme { color: var(--text-muted); }
+.text-muted-custom { color: var(--text-secondary); }
+
+/* Buttons */
+.btn-primary-theme {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--text-on-primary);
+}
+.btn-primary-theme:hover {
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  color: var(--text-on-primary);
+}
+
+.btn-secondary-theme {
+  background-color: var(--color-secondary);
+  border-color: var(--color-secondary);
+  color: var(--text-on-primary);
+}
+.btn-secondary-theme:hover {
+  background-color: var(--color-secondary-hover);
+  border-color: var(--color-secondary-hover);
+  color: var(--text-on-primary);
+}
+
+/* Theme Toggle */
+.theme-toggle {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  border-radius: 8px;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+.theme-toggle:hover {
+  background-color: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: var(--border-focus);
+}
+
+/* Login */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-app);
+  padding: 16px;
+}
+
+.login-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 32px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.login-brand {
+  color: var(--color-primary);
+}
+
+/* Status / Badges temáticos do Kanban */
+.status-todo { color: var(--status-todo); }
+.status-in-progress { color: var(--status-in-progress); }
+.status-review { color: var(--status-review); }
+.status-done { color: var(--status-done); }
+
+/* Modal */
+.modal-content {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.modal-header, .modal-footer {
+  border-color: var(--border-color);
+}
+
+.modal .form-control, .modal .form-select {
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-app);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-badge);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-slate);
+}
+
+/* Dropdown menus */
+.dropdown-menu {
+  background-color: var(--bg-card);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+.dropdown-menu .dropdown-item {
+  color: var(--text-primary);
+}
+.dropdown-menu .dropdown-item:hover {
+  background-color: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+/* Placeholder pages */
+.placeholder-icon {
+  color: var(--color-primary);
+}
+.placeholder-text {
+  color: var(--text-secondary);
+}
