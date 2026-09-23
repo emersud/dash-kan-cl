@@ -12,7 +12,6 @@ export default function LoginPage({ onLoginSuccess }) {
   const [senha, setSenha] = useState('')
   const [confirmar, setConfirmar] = useState('')
   const [nome, setNome] = useState('')
-  const [papel, setPapel] = useState('aluno')
   const [erro, setErro] = useState('')
   const [sucesso, setSucesso] = useState('')
   const [carregando, setCarregando] = useState(false)
@@ -71,12 +70,13 @@ export default function LoginPage({ onLoginSuccess }) {
     setCarregando(true)
     try {
       entrarModoConectado()
+      // Cadastro público: sempre ALUNO. Só o gestor muda o perfil em Gerenciar Usuários.
       const resultado = await ds.cadastrarUsuarioPublico({
         nome: nome.trim(),
         email: email.trim(),
         senha,
-        papel,
-        funcao_principal: papel === 'aluno' ? 'Integrante' : papel === 'professor' ? 'Professor' : 'Gestor',
+        papel: 'aluno',
+        funcao_principal: 'Integrante',
         primeiro_acesso: true
       })
       setSucesso(resultado.mensagem || 'Usuário cadastrado com sucesso! Faça login com seu e-mail e senha.')
@@ -84,7 +84,6 @@ export default function LoginPage({ onLoginSuccess }) {
       setEmail('')
       setSenha('')
       setConfirmar('')
-      setPapel('aluno')
       setVista('login')
     } catch (err) {
       setErro(err.message || 'Erro ao cadastrar usuário')
@@ -169,14 +168,6 @@ export default function LoginPage({ onLoginSuccess }) {
               <div className="mb-2">
                 <label className="form-label text-muted-custom">E-mail</label>
                 <input type="email" className="form-control" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
-              </div>
-              <div className="mb-2">
-                <label className="form-label text-muted-custom">Papel</label>
-                <select className="form-select" value={papel} onChange={(e) => setPapel(e.target.value)}>
-                  <option value="aluno">Aluno</option>
-                  <option value="professor">Professor</option>
-                  <option value="gestor">Gestor</option>
-                </select>
               </div>
               <div className="mb-2">
                 <label className="form-label text-muted-custom">Senha</label>

@@ -22,7 +22,11 @@ export default function UsersPage() {
   const [confirmRemover, setConfirmRemover] = useState(null)
   const [feedback, setFeedback] = useState('')
 
-  const ehGestor = isProfessor(usuarioLogado?.papel)
+  // Acesso à página: gestor ou professor. Só o GESTOR muda o perfil de acesso;
+// o PROFESSOR apenas realoca a turma do aluno.
+  const ehGestor = usuarioLogado?.papel === 'gestor'
+  const podeGerenciar = isProfessor(usuarioLogado?.papel)
+  const podeMudarPapel = ehGestor
 
   const usuariosFiltrados = usuarios.filter(u => {
     const okBusca = !busca.trim()
@@ -32,7 +36,17 @@ export default function UsersPage() {
     return okBusca && okPapel
   })
 
+  const podeEditarAlvo = (user) => {
+    if (ehGestor) return true
+    // Professor: só alunos (alterar turma)
+    return user?.papel === 'aluno'
+  }
+
   const abrirEditar = (user) => {
+    if (!podeEditarAlvo(user)) {
+      setFeedback('Apenas o gestor pode editar perfis que não sejam de aluno. Professores só alteram a turma do aluno.')
+      return
+    }
     setEditUser(user)
     setForm({
       nome: user.nome || '',
@@ -47,6 +61,24 @@ export default function UsersPage() {
 
   const salvarEdicao = async () => {
     setErro('')
+    if (!editUser) return
+
+    // Professor: somente turma do aluno (sem tocar em nome/e-mail/senha/perfil)
+    if (!podeMudarPapel) {
+      if (editUser.papel !== 'aluno') {
+        setErro('Professores só podem alterar a turma de alunos. Peça ao gestor para editar este usuário.')
+        return
+      }
+      await ds.atualizarUsuario(editUser.id, { turma_id: form.turma_id || null })
+      const dados = { turma_id: form.turma_id || null }
+      setUsuarios(prev => prev.map(u => (u.id === editUser.id ? { ...u, ...dados } : u)))
+      setShowEdit(false)
+      setEditUser(null)
+      setFeedback('Turma do aluno atualizada com sucesso!')
+      await refreshAll()
+      return
+    }
+
     if (!form.nome.trim()) { setErro('Informe o nome do usuário.'); return }
     if (!form.email.trim() || !/^\S+@\S+\.\S+$/.test(form.email.trim())) {
       setErro('Informe um e-mail válido.'); return
@@ -64,6 +96,8 @@ export default function UsersPage() {
     }
     if (form.papel === 'aluno') {
       dados.turma_id = form.turma_id || null
+    } else {
+      dados.turma_id = null
     }
     if (form.senha) dados.senha = form.senha
 
@@ -93,7 +127,7 @@ export default function UsersPage() {
 
   const getTurma = (id) => turmas.find(t => t.id === id)
 
-  if (!ehGestor) {
+  if (!podeGerenciar) {
     return (
       <div className="card">
         <div className="card-body text-center p-5">
@@ -110,7 +144,11 @@ export default function UsersPage() {
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
           <h4 className="mb-1">Gerenciar Usuários</h4>
-          <small className="text-muted-custom">Edite perfis de acesso (gestor, professor, aluno), dados e exclua usuários</small>
+          <small className="text-muted-custom">
+            {podeMudarPapel
+              ? 'Edite perfis de acesso (gestor, professor, aluno), dados e exclua usuários'
+              : 'Como professor, você pode alterar apenas a turma de alunos. O perfil de acesso é alterado apenas pelo gestor.'}
+          </small>
         </div>
       </div>
 
@@ -172,7 +210,13 @@ export default function UsersPage() {
                     <td className="text-muted-custom">{turma?.nome || '—'}</td>
                     <td>
                       <div className="d-flex gap-1">
-                        <button className="theme-toggle" title="Editar usuário" onClick={() => abrirEditar(user)}>
+                        <button
+                          className="theme-toggle"
+                          title={podeEditarAlvo(user) ? 'Editar usuário' : 'Somente o gestor pode editar este usuário'}
+                          disabled={!podeEditarAlvo(user)}
+                          style={!podeEditarAlvo(user) ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                          onClick={() => podeEditarAlvo(user) && abrirEditar(user)}
+                        >
                           <i className="bi bi-pencil"></i>
                         </button>
                         <button
@@ -202,21 +246,36 @@ export default function UsersPage() {
         title="Editar Usuário"
       >
         {erro && <div className="alert alert-danger py-2">{erro}</div>}
-        <div className="mb-3">
-          <label className="form-label text-muted-custom">Nome completo</label>
-          <input className="form-control" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
-        </div>
-        <div className="mb-3">
-          <label className="form-label text-muted-custom">E-mail</label>
-          <input type="email" className="form-control" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        </div>
-        <div className="mb-3">
-          <label className="form-label text-muted-custom">Perfil de acesso</label>
-          <select className="form-select" value={form.papel} onChange={(e) => setForm({ ...form, papel: e.target.value })}>
-            {PAPEIS.map(p => <option key={p.valor} value={p.valor}>{p.label}</option>)}
-          </select>
-        </div>
-        {form.papel === 'aluno' && (
+
+        {!podeMudarPapel && (
+          <div className="alert alert-info py-2">
+            <i className="bi bi-info-circle me-1"></i>
+            Como professor, você pode alterar <strong>apenas a turma</strong> do aluno.
+            O perfil de acesso é alterado somente pelo gestor.
+          </div>
+        )}
+
+        {podeMudarPapel && (
+          <>
+            <div className="mb-3">
+              <label className="form-label text-muted-custom">Nome completo</label>
+              <input className="form-control" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+            </div>
+            <div className="mb-3">
+              <label className="form-label text-muted-custom">E-mail</label>
+              <input type="email" className="form-control" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            </div>
+            <div className="mb-3">
+              <label className="form-label text-muted-custom">Perfil de acesso</label>
+              <select className="form-select" value={form.papel} onChange={(e) => setForm({ ...form, papel: e.target.value })}>
+                {PAPEIS.map(p => <option key={p.valor} value={p.valor}>{p.label}</option>)}
+              </select>
+              <small className="text-muted-custom d-block mt-1">Somente o gestor pode alterar o perfil de acesso.</small>
+            </div>
+          </>
+        )}
+
+        {(form.papel === 'aluno' || (!podeMudarPapel && editUser?.papel === 'aluno')) && (
           <div className="mb-3">
             <label className="form-label text-muted-custom">Turma</label>
             <select className="form-select" value={form.turma_id} onChange={(e) => setForm({ ...form, turma_id: e.target.value })}>
@@ -225,13 +284,16 @@ export default function UsersPage() {
                 <option key={t.id} value={t.id}>{t.nome}</option>
               ))}
             </select>
-            <small className="text-muted-custom d-block mt-1">Use para mover um aluno (inclusive órfão de turma excluída) para outra turma.</small>
+            <small className="text-muted-custom d-block mt-1">Mova o aluno (inclusive órfão de turma excluída) para outra turma.</small>
           </div>
         )}
-        <div className="mb-2">
-          <label className="form-label text-muted-custom">Nova senha <span className="small">(opcional — em branco mantém a atual)</span></label>
-          <input type="password" className="form-control" placeholder="Mínimo 6 caracteres" value={form.senha} onChange={(e) => setForm({ ...form, senha: e.target.value })} />
-        </div>
+
+        {podeMudarPapel && (
+          <div className="mb-2">
+            <label className="form-label text-muted-custom">Nova senha <span className="small">(opcional — em branco mantém a atual)</span></label>
+            <input type="password" className="form-control" placeholder="Mínimo 6 caracteres" value={form.senha} onChange={(e) => setForm({ ...form, senha: e.target.value })} />
+          </div>
+        )}
         <div className="d-flex justify-content-end gap-2 mt-3">
           <button className="btn btn-secondary" onClick={() => { setShowEdit(false); setEditUser(null) }}>Cancelar</button>
           <button className="btn btn-primary-theme" onClick={salvarEdicao}>Salvar</button>

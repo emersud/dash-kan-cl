@@ -876,3 +876,31 @@ SOLICITADAS PELO USUÁRIO EXECUTADAS E VALIDADAS COM npm run build).
   index.html, LOG.txt, package.json, package-lock.json, render.yaml,
   vite.config.js.
 --------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-09-23] CADASTRO SEMPRE ALUNO + PERFIL DE ACESSO SÓ GESTOR (PROFESSOR: TURMA) ✔
+--------------------------------------------------------------------------------
+  SOLICITAÇÃO: no cadastro público todos entram como aluno; em Gerenciar
+  Usuários somente o GESTOR muda o perfil de acesso; o PROFESSOR não tem
+  esse privilégio e só pode alterar a turma do aluno.
+
+  1) LoginPage (src/pages/LoginPage.jsx):
+     * Removido o seletor "Papel" do formulário de cadastro.
+     * cadastrarUsuarioPublico recebe SEMPRE papel: 'aluno' e
+       funcao_principal: 'Integrante'.
+     * Mudança de papel (aluno -> professor/gestor) só via Gerenciar Usuários.
+
+  2) UsersPage (src/pages/UsersPage.jsx):
+     * Acesso à página continua gestor + professor (isProfessor).
+     * podeMudarPapel = (usuarioLogado.papel === 'gestor'):
+       - GESTOR: modal com nome, e-mail, PERFIL DE ACESSO (select), turma
+         (se aluno) e senha opcional; ao salvar, envia papel e limpa turma_id
+         quando o novo papel não for aluno.
+       - PROFESSOR: botão Editar habilitado APENAS para usuários com papel
+         'aluno'; no modal, só o campo Turma (alerta explicando a regra);
+         salvar envia APENAS { turma_id } (não toca em nome/e-mail/senha/
+         papel); alvo não-aluno -> erro/aviso.
+     * Subtítulo da página muda conforme o perfil logado.
+
+  VALIDAÇÃO: npm run build - SUCESSO (175 módulos).
+--------------------------------------------------------------------------------
