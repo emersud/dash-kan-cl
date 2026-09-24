@@ -42,12 +42,12 @@ export default function RadarPage() {
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+      <div className="page-header d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
           <h4 className="mb-1">Radar de Engajamento</h4>
           <small className="text-muted-custom">Score automático (0-100) com daily check-ins e impedimentos</small>
         </div>
-        <div className="d-flex gap-2">
+        <div className="page-header-actions d-flex gap-2">
           <select className="form-select" style={{ width: 240 }} value={projetoId} onChange={(e) => { setProjetoId(e.target.value); setEquipeId('') }}>
             {projetos.length === 0 && <option value="">Nenhum projeto</option>}
             {projetos.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}

@@ -141,7 +141,7 @@ export default function UsersPage() {
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+      <div className="page-header d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
           <h4 className="mb-1">Gerenciar Usuários</h4>
           <small className="text-muted-custom">
@@ -162,7 +162,7 @@ export default function UsersPage() {
       <div className="card">
         <div className="card-header d-flex justify-content-between align-items-center flex-wrap gap-2" style={{ backgroundColor: 'var(--bg-card)' }}>
           <h6 className="mb-0">Usuários do Sistema ({usuariosFiltrados.length})</h6>
-          <div className="d-flex gap-2">
+          <div className="d-flex gap-2 flex-wrap">
             <input
               className="form-control form-control-sm"
               style={{ width: 220 }}

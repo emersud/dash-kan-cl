@@ -42,7 +42,7 @@ export default function TeamsPage() {
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+      <div className="page-header d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
           <h4 className="mb-1">Equipes & Grupos</h4>
           <small className="text-muted-custom">Formação de equipes com mix multi-turma</small>

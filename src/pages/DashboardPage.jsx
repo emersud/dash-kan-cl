@@ -21,12 +21,12 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+      <div className="page-header d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
           <h4 className="mb-1">Dashboard</h4>
           <small className="text-muted-custom">KPIs de saúde das equipes e semáforo dos alunos</small>
         </div>
-        <div className="d-flex gap-2">
+        <div className="page-header-actions d-flex gap-2">
           <select className="form-select" style={{ width: 240 }} value={projetoId} onChange={(e) => setProjetoId(e.target.value)}>
             {projetos.length === 0 && <option value="">Nenhum projeto</option>}
             {projetos.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
@@ -48,7 +48,7 @@ export default function DashboardPage() {
       ) : (
         <>
           <div className="row g-3 mb-4">
-            <div className="col-md-3">
+            <div className="col-6 col-md-3">
               <div className="card">
                 <div className="card-body d-flex align-items-center gap-3">
                   <i className="bi bi-kanban fs-2" style={{ color: 'var(--color-primary)' }}></i>
@@ -56,7 +56,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-            <div className="col-md-3">
+            <div className="col-6 col-md-3">
               <div className="card">
                 <div className="card-body d-flex align-items-center gap-3">
                   <i className="bi bi-check-circle-fill fs-2 text-success"></i>
@@ -64,7 +64,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-            <div className="col-md-3">
+            <div className="col-6 col-md-3">
               <div className="card">
                 <div className="card-body d-flex align-items-center gap-3">
                   <i className="bi bi-speedometer2 fs-2" style={{ color: 'var(--color-secondary)' }}></i>
@@ -72,7 +72,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-            <div className="col-md-3">
+            <div className="col-6 col-md-3">
               <div className="card">
                 <div className="card-body d-flex align-items-center gap-3">
                   <i className="bi bi-exclamation-triangle-fill fs-2 text-danger"></i>

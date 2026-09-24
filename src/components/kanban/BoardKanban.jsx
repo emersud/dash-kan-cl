@@ -78,7 +78,7 @@ export function BoardKanban({ projeto, onCardClick, equipeFiltro = null, idsEqui
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="row g-3 flex-nowrap overflow-auto pb-2">
+      <div className="kanban-board row g-3 flex-nowrap overflow-auto pb-2">
         {COLUNAS.map(col => (
           <Column
             key={col.id}

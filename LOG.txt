@@ -822,40 +822,40 @@ SOLICITADAS PELO USU√ÅRIO EXECUTADAS E VALIDADAS COM npm run build).
 
 
 --------------------------------------------------------------------------------
-[2026-09-23] VERS√O FINAL - LOGIN S” CONECTADO + CADASTRO + ADMIN + DEPLOY ?
+[2026-09-23] VERSÔøΩO FINAL - LOGIN SÔøΩ CONECTADO + CADASTRO + ADMIN + DEPLOY ?
 --------------------------------------------------------------------------------
-  SOLICITA«√O: 1) remover modo demonstraÁ„o e teste de conex„o (deix·-los
-  inativos); na tela final sÛ login Modo Conectado + cadastrar novo usu·rio;
-  2) mover arquivos de criaÁ„o/docs para pasta ADMIN (ignorada no deploy),
-  mantendo somente LOG.txt na raiz; 3) limpar arquivos n„o ˙teis;
-  4) preparar Render + GitHub; 5) validar build e registrar sÛ o concluÌdo.
+  SOLICITAÔøΩÔøΩO: 1) remover modo demonstraÔøΩÔøΩo e teste de conexÔøΩo (deixÔøΩ-los
+  inativos); na tela final sÔøΩ login Modo Conectado + cadastrar novo usuÔøΩrio;
+  2) mover arquivos de criaÔøΩÔøΩo/docs para pasta ADMIN (ignorada no deploy),
+  mantendo somente LOG.txt na raiz; 3) limpar arquivos nÔøΩo ÔøΩteis;
+  4) preparar Render + GitHub; 5) validar build e registrar sÔøΩ o concluÔøΩdo.
 
   ETAPA 1 - LOGIN (src/pages/LoginPage.jsx):
     * UI reduzida a 2 vistas: 'login' (e-mail + senha -> autenticarSupabase)
       e 'cadastro' (nome, e-mail, papel aluno/professor/gestor, senha x2).
-    * Removidos da UI: cartıes de modo, Modo DemonstraÁ„o e Teste de Conex„o.
+    * Removidos da UI: cartÔøΩes de modo, Modo DemonstraÔøΩÔøΩo e Teste de ConexÔøΩo.
     * finalizarLogin: await onLoginSuccess() ANTES de setUsuarioLogado.
     * dataService.nova cadastrarUsuarioPublico(): supabase.auth.signUp com
       metadata nome/papel/funcao_principal/primeiro_acesso; o trigger
       handle_new_user (0001) grava public.usuarios; trata e-mail duplicado
-      e confirmaÁ„o de e-mail.
+      e confirmaÔøΩÔøΩo de e-mail.
     * supabaseClient.js: isSupabaseDisponivel() = !!supabase (sem VITE_DEMO_MODE);
       entrarModoDemo() e testarConexao() mantidos apenas como stubs DESATIVADOS
       (exports preservados; nenhum import da UI os usa).
     * .env / .env.example: removida a linha VITE_DEMO_MODE.
 
-  ETAPA 2 - PASTA ADMIN (criaÁ„o/docs -> ADMIN/, fora do deploy):
+  ETAPA 2 - PASTA ADMIN (criaÔøΩÔøΩo/docs -> ADMIN/, fora do deploy):
     * Movidos para ADMIN/: PROJ.md, PROJNew.md, PROJETO_REESTRUTURADO.md,
       CORES.md, Migration_preparation.md, Migration_preparationLog.md,
       FASE 8.txt + novo ADMIN/DEPLOY.md (passo a passo GitHub + Render).
-    * Movidos para ADMIN/supabase/: scripts de diagnÛstico/hotfix
+    * Movidos para ADMIN/supabase/: scripts de diagnÔøΩstico/hotfix
       (verificar_seed, corrigir_login, diagnostico_*, hotfix_login*).
-    * Raiz do projeto: apenas LOG.txt como arquivo de documentaÁ„o de
+    * Raiz do projeto: apenas LOG.txt como arquivo de documentaÔøΩÔøΩo de
       acompanhamento; supabase/migrations/ permanece (schema oficial).
-    * .gitignore: adicionada regra ADMIN/ (n„o versiona nem deploya).
+    * .gitignore: adicionada regra ADMIN/ (nÔøΩo versiona nem deploya).
 
   ETAPA 3 - LIMPEZA:
-    * ExcluÌdos: grok.txt, newapi.txt, dev.log, pasta docs/ vazia.
+    * ExcluÔøΩdos: grok.txt, newapi.txt, dev.log, pasta docs/ vazia.
     * Mantidos na raiz: package*.json, vite.config.js, index.html, .env,
       .env.example, .gitignore, render.yaml, exemplo_importacao_alunos.csv,
       LOG.txt, src/, supabase/migrations/.
@@ -863,13 +863,13 @@ SOLICITADAS PELO USU√ÅRIO EXECUTADAS E VALIDADAS COM npm run build).
   ETAPA 4 - RENDER + GITHUB:
     * Novo render.yaml (Static Site: build npm install && npm run build,
       publish dist, envVars VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).
-    * ADMIN/DEPLOY.md com git init/push, configuraÁ„o Render e ordem das
+    * ADMIN/DEPLOY.md com git init/push, configuraÔøΩÔøΩo Render e ordem das
       migrations (0001..0004) + Auto Confirm no Auth.
-    * .env n„o versionado; credenciais sÛ no .env local e no painel Render.
+    * .env nÔøΩo versionado; credenciais sÔøΩ no .env local e no painel Render.
 
   ETAPA 5 - VALIDACAO:
-    * npm run build - SUCESSO (175 mÛdulos transformados).
-    * Entradas acima registram SOMENTE etapas concluÌdas nesta data.
+    * npm run build - SUCESSO (175 mÔøΩdulos transformados).
+    * Entradas acima registram SOMENTE etapas concluÔøΩdas nesta data.
 
   RAIZ FINAL: ADMIN/ (ignorada), dist/, node_modules/, src/, supabase/,
   .env, .env.example, .gitignore, exemplo_importacao_alunos.csv,
@@ -914,4 +914,99 @@ SOLICITADAS PELO USU√ÅRIO EXECUTADAS E VALIDADAS COM npm run build).
   - Removido o bloco server (host/port) anterior; deploy em Static Site
     usa `npm run build` -> dist (preview local continua via `npm run preview`).
   - VALIDACAO: npm run build - SUCESSO (175 modulos).
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-09-24] DESIGN RESPONSIVO MOBILE DE ALTA USABILIDADE (SKILL_Mobile.md) ‚úî
+--------------------------------------------------------------------------------
+  SOLICITA√á√ÉO: nos testes de deploy a aplica√ß√£o estava dif√≠cil de manipular
+  no celular. Aplicar design responsivo mobile de alta usabilidade seguindo
+  a skill presente em SKILL_Mobile.md, mantendo a est√©tica de cores do
+  CORES.MD (tokens CSS em styles.css) e mantendo o layout desktop inalterado
+  ‚Äî somente o design responsivo mobile foi alterado.
+
+  REGRAS APLICADAS (SKILL_Mobile.md):
+  * Baseline mobile 375px (iPhone SE); breakpoint √∫nico <992px (lg do Bootstrap).
+  * Alvos de toque m√≠nimos 44x44pt (bot√µes, nav, inputs, toggles).
+  * Inputs com font-size 16px no mobile (evita zoom autom√°tico no iOS).
+  * Grid de espa√ßamento 8pt (8/12/16/24) nas quebras de layout.
+  * Hierarquia visual: t√≠tulo > a√ß√µes empilhadas; CTAs full-width na thumb zone.
+  * Modais em folha fullscreen com header/footer sticky (rolagem confort√°vel).
+  * Paleta 60/30/10 preservada ‚Äî NENHUM token de cor alterado (CORES.MD intacto).
+  * Desktop >=992px permanece id√™ntico (todas as regras s√≥ dentro de @media).
+
+  ALTERA√á√ïES POR ARQUIVO:
+
+  1) index.html
+     * viewport com viewport-fit=cover (safe areas iPhone/notch).
+
+  2) src/styles.css (se√ß√µes novas ao final ‚Äî tokens de cor N√ÉO modificados)
+     * Shell: .app-shell (coluna), .app-body (flex), .app-main (padding 1.5rem
+       no desktop = antigo .p-4; 12px no mobile + safe-area inferior).
+     * .mobile-topbar: barra sticky 56px (hamb√∫rguer + marca + tema), oculta
+       em desktop (display:none >=992px).
+     * .sidebar-backdrop: overlay escuro com fade para o drawer.
+     * Media query <992px:
+       - Sidebar vira drawer fixed off-canvas (transform translateX,
+         largura min(300px, 86vw), z-index 1045 acima do backdrop 1040);
+         nav com scroll vertical; nav-links min-height 44px.
+       - Touch targets: .theme-toggle 44x44, .btn min-height 44,
+         .btn-sm min-height 40, .btn-close 40x40, checkboxes maiores.
+       - Forms: .form-control/.form-select font-size 16px + min-height 44.
+       - .page-header: empilha coluna; bot√µes/selects diretos full-width;
+         .page-header-actions vira coluna full-width (vence larguras inline
+         com !important s√≥ no mobile).
+       - .card-header: flex-wrap + filtros/busca full-width.
+       - Modais: padding 0, dialog/content fullscreen (100dvh), border-radius 0,
+         header/footer sticky com fundo var(--bg-card), a√ß√µes Cancelar/Salvar
+         empilhadas full-width; footer com safe-area.
+       - Kanban (.kanban-board): scroll horizontal com snap, colunas 260px/78vw.
+       - Tabelas: -webkit-overflow-scrolling touch, thead nowrap.
+       - Login: card com padding reduzido e safe-area superior.
+       - Selects/inputs com width inline ‚Üí 100% no mobile (exceto preservando
+         layout de toolbars de modal com flex-wrap).
+     * Media query <576px: refinamentos (t√≠tulos menores, footer modal
+       column-reverse full-width).
+
+  3) src/App.jsx
+     * Shell reestruturado: .app-shell > .mobile-topbar + .sidebar-backdrop
+       + .app-body (Sidebar + main.app-main).
+     * Estado sidebarOpen; fecha ao navegar (handleNavigate) e no logout.
+     * Bloqueia scroll do body com o drawer aberto (overflow hidden).
+     * Fecha com tecla Escape.
+     * Topbar mobile: bot√£o hamb√∫rguer (bi-list), marca EduProject e
+       altern√¢ncia de tema (mesmo tema claro/escuro do CORES.MD).
+     * Bot√£o de tema no topbar reutiliza o mesmo toggleTheme (localStorage).
+
+  4) src/components/common/Sidebar.jsx
+     * Novas props open e onClose.
+     * Classe .is-open controla o transform do drawer.
+     * Bot√£o X (bi-x-lg) d-lg-none no cabe√ßalho para fechar o menu no mobile.
+     * Navega√ß√£o continua fechando o drawer via onNavigate do App.
+
+  5) P√°ginas ‚Äî classe .page-header (+ .page-header-actions quando h√° grupo
+     de a√ß√µes), preservando estrutura e conte√∫do desktop:
+     * StudentsPage (header + card-header da busca com flex-wrap)
+     * TeamsPage, ProjectsPage, BacklogPage, DashboardPage, KanbanPage,
+       RadarPage, DailyRegisterPage, StudentProfilePage, UsersPage
+       (card-header de filtros com flex-wrap).
+
+  6) Componentes:
+     * BoardKanban: classe .kanban-board na row do quadro.
+     * DashboardPage: KPIs col-md-3 ‚Üí col-6 col-md-3 (grid 2x2 no mobile;
+       desktop md+ inalterado com 4 colunas).
+     * TeamBuilderModal / ProjectForm: toolbars com flex-wrap gap-2
+       (t√≠tulo + select/equipes quebram linha no mobile).
+
+  CORES: nenhum valor de --color-*, --bg-*, --border-*, --text-*,
+  --status-* alterado (Dark e Light do CORES.MD intactos).
+
+  DESKTOP: >=992px ‚Äî media queries n√£o se aplicam; padding do main = 1.5rem
+  (id√™ntico ao antigo p-4); topbar oculta; sidebar est√°tica 260px; modais
+  centrados normais. Layout permanece o mesmo.
+
+  VALIDA√á√ÉO: npm run build - SUCESSO (175 m√≥dulos transformados).
+  -> VISUALIZ√ÅVEL (celular): menu hamb√∫rguer com drawer, topbar fixa,
+     bot√µes/inputs confort√°veis ao toque, modais em tela cheia,
+     kanban com scroll horizontal e tabelas rol√°veis; desktop inalterado.
 --------------------------------------------------------------------------------

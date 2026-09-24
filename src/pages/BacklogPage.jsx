@@ -33,12 +33,12 @@ export default function BacklogPage() {
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+      <div className="page-header d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
           <h4 className="mb-1">Backlog do Projeto</h4>
           <small className="text-muted-custom">Incluir e gerenciar tarefas do projeto selecionado</small>
         </div>
-        <div className="d-flex gap-2">
+        <div className="page-header-actions d-flex gap-2">
           <select className="form-select" style={{ width: 280 }} value={projetoId} onChange={(e) => { setProjetoId(e.target.value); setBacklogProjetoId(e.target.value) }}>
             {projetos.length === 0 && <option value="">Nenhum projeto</option>}
             {projetos.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}

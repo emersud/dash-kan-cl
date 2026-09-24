@@ -97,7 +97,7 @@ export function ProjectForm({ show, onClose, projetoEdit }) {
               <textarea className="form-control" rows="2" placeholder="Ex: Figma, documentação, repositório base..." value={recursos} onChange={(e) => setRecursos(e.target.value)}></textarea>
             </div>
 
-            <div className="d-flex justify-content-between align-items-center mb-2">
+            <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
               <label className="form-label text-muted-custom d-block mb-0">Equipes participantes (todas ou seleção individual)</label>
               {equipes.length > 0 && (
                 <button

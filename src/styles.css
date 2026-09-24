@@ -307,3 +307,440 @@ a {
 .placeholder-text {
   color: var(--text-secondary);
 }
+
+/* ==========================================================================
+   MOBILE APP SHELL (estrutura p/ drawer + topbar)
+   Desktop (>=992px): layout permanece idêntico ao anterior.
+   ========================================================================== */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.app-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 1.5rem; /* equivalente a .p-4 do Bootstrap (desktop inalterado) */
+}
+
+/* Topbar mobile (oculta em desktop) */
+.mobile-topbar {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  padding: 0 12px;
+  padding-left: calc(12px + env(safe-area-inset-left, 0px));
+  padding-right: calc(12px + env(safe-area-inset-right, 0px));
+  background-color: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.mobile-topbar .brand-text {
+  color: var(--text-primary);
+}
+
+/* Backdrop do drawer (oculto em desktop) */
+.sidebar-backdrop {
+  display: none;
+}
+
+/* ==========================================================================
+   PAGE HEADERS (título + ações) — empilham no mobile
+   ========================================================================== */
+
+.page-header-actions {
+  min-width: 0;
+}
+
+/* ==========================================================================
+   KANBAN — scroll horizontal confortável no mobile
+   ========================================================================== */
+
+.kanban-board {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.kanban-board > .col {
+  scroll-snap-align: start;
+}
+
+/* ==========================================================================
+   DESIGN RESPONSIVO MOBILE (<992px / breakpoint lg do Bootstrap)
+   Regras da skill SKILL_Mobile.md:
+   - alvos de toque >= 44x44pt
+   - inputs 16px (evita zoom automático no iOS)
+   - grid de 8pt, hierarquia visual, thumb zone
+   - paleta preservada (tokens CORES.MD em :root)
+   Desktop >=992px NÃO é afetado (tudo abaixo é só mobile).
+   ========================================================================== */
+
+@media (max-width: 991.98px) {
+  /* --- Shell: conteúdo ocupa a largura toda --- */
+  .app-main {
+    padding: 12px;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    overflow-x: hidden;
+  }
+
+  /* --- Topbar mobile visível --- */
+  .mobile-topbar {
+    display: flex;
+  }
+
+  /* --- Sidebar vira drawer off-canvas --- */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1045;
+    width: min(300px, 86vw);
+    min-height: 100dvh;
+    height: 100dvh;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: none;
+    border-right: 1px solid var(--border-color);
+  }
+
+  .sidebar.is-open {
+    transform: translateX(0);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.45);
+  }
+
+  .sidebar nav {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sidebar .nav-link {
+    min-height: 44px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  /* --- Backdrop do drawer --- */
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1040;
+    background-color: rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  .sidebar-backdrop.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* --- Touch targets (skill: min 44x44pt) --- */
+  .theme-toggle {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+  }
+
+  .btn {
+    min-height: 44px;
+  }
+
+  .btn-sm {
+    min-height: 40px;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .btn-close {
+    width: 40px;
+    height: 40px;
+    padding: 0.6rem;
+  }
+
+  .form-check-input {
+    width: 1.25em;
+    height: 1.25em;
+    margin-top: 0.15em;
+  }
+
+  /* --- Forms: 16px evita zoom automático no iOS + altura de toque --- */
+  .form-control,
+  .form-select {
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  .form-control-sm,
+  .form-select-sm {
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  .form-label,
+  .form-check-label {
+    font-size: 0.875rem;
+  }
+
+  textarea.form-control {
+    font-size: 16px;
+  }
+
+  /* --- Page headers empilham (título em cima, ações embaixo full-width) --- */
+  .page-header {
+    flex-direction: column;
+    align-items: stretch !important;
+    margin-bottom: 16px !important;
+  }
+
+  .page-header > .btn,
+  .page-header > .form-select,
+  .page-header > .form-control,
+  .page-header > select,
+  .page-header > input {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .page-header > .badge {
+    align-self: flex-start;
+    width: fit-content;
+  }
+
+  .page-header h4,
+  .page-header h5 {
+    font-size: 1.35rem;
+  }
+
+  .page-header-actions {
+    display: flex !important;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .page-header-actions > * {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* --- Card headers com filtros/busca quebram linha e alargam --- */
+  .card-header {
+    flex-wrap: wrap !important;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .card-header > .form-control,
+  .card-header > .form-select,
+  .card-header .d-flex > .form-control,
+  .card-header .d-flex > .form-select {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .card-header .d-flex.gap-2 {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .card-body {
+    padding: 16px;
+  }
+
+  /* --- Modais em folha fullscreen (alvos de toque + rolagem) --- */
+  .modal {
+    padding: 0 !important;
+  }
+
+  .modal-dialog {
+    margin: 0;
+    max-width: 100%;
+    min-height: 100%;
+  }
+
+  .modal-dialog-centered {
+    min-height: 100%;
+  }
+
+  .modal-content {
+    min-height: 100dvh;
+    border-radius: 0;
+    border: none;
+    background-color: var(--bg-card);
+  }
+
+  .modal-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--bg-card);
+    padding: 14px 16px;
+  }
+
+  .modal-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    background-color: var(--bg-card);
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 16px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .modal-footer .btn {
+    flex: 1 1 140px;
+  }
+
+  .modal-body {
+    padding: 16px;
+  }
+
+  /* Ações dentro do corpo do modal (Cancelar/Salvar inline) */
+  .modal-body > .d-flex.justify-content-end.gap-2 {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .modal-body > .d-flex.justify-content-end.gap-2 > .btn {
+    width: 100%;
+  }
+
+  .modal-body > .d-flex.justify-content-between.gap-2 {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* --- Kanban: colunas com snap e scroll horizontal --- */
+  .kanban-board {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    padding-bottom: 12px;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .kanban-board > .col {
+    min-width: 260px !important;
+    max-width: 78vw;
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+
+  /* --- Tabelas: rolagem horizontal suave --- */
+  .table-responsive {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  .table thead th {
+    white-space: nowrap;
+    font-size: 0.8rem;
+  }
+
+  .table td {
+    font-size: 0.875rem;
+  }
+
+  /* --- Login --- */
+  .login-container {
+    padding: 16px;
+    align-items: flex-start;
+    padding-top: max(24px, env(safe-area-inset-top, 24px));
+  }
+
+  .login-card {
+    padding: 24px 20px;
+    border-radius: 14px;
+    margin: auto 0;
+  }
+
+  /* --- Alertas e feedback com mais respiro --- */
+  .alert {
+    font-size: 0.9rem;
+  }
+
+  /* --- Botões de ação em cards: área de toque generosa --- */
+  .d-flex.gap-1 > .theme-toggle {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* --- Seletores com largura fixa inline viram full-width --- */
+  select.form-select[style*="width"],
+  input.form-control[style*="width"] {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Exceto controles de cor (pequenos por natureza) */
+  .form-control-color {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 44px;
+  }
+
+  /* --- Toolbars dentro de modais quebram linha --- */
+  .modal .d-flex.justify-content-between.align-items-center {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .modal .d-flex.justify-content-between.align-items-center > .form-select,
+  .modal .d-flex.justify-content-between.align-items-center > .form-control {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* Telas muito pequenas (<576px): refinamentos extras */
+@media (max-width: 575.98px) {
+  .app-main {
+    padding: 10px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .page-header h4,
+  .page-header h5 {
+    font-size: 1.2rem;
+  }
+
+  .card-body {
+    padding: 14px;
+  }
+
+  .modal-footer {
+    flex-direction: column-reverse;
+  }
+
+  .modal-footer .btn {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
+  .modal-body > .d-flex.justify-content-end.gap-2 > .btn {
+    min-height: 44px;
+  }
+}

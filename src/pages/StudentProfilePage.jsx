@@ -121,12 +121,12 @@ export default function StudentProfilePage() {
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+      <div className="page-header d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
           <h4 className="mb-1">Perfil</h4>
           <small className="text-muted-custom">Suas tarefas, backlogs, alertas e radar de engajamento</small>
         </div>
-        <div className="d-flex gap-2">
+        <div className="page-header-actions d-flex gap-2">
           <button className="btn btn-outline-secondary" onClick={async () => { setRecarregando(true); try { await refreshAll() } finally { setRecarregando(false) } }} disabled={recarregando || loading}>
             <i className="bi bi-arrow-clockwise me-1"></i>
             {recarregando || loading ? 'Atualizando...' : 'Atualizar'}

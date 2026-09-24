@@ -93,7 +93,7 @@ export default function StudentsPage() {
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+      <div className="page-header d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
           <h4 className="mb-1">Turmas & Alunos</h4>
           <small className="text-muted-custom">Cadastro de turmas e importação de alunos via Excel/CSV</small>
@@ -164,7 +164,7 @@ export default function StudentsPage() {
       </div>
 
       <div className="card">
-        <div className="card-header d-flex justify-content-between align-items-center" style={{ backgroundColor: 'var(--bg-card)' }}>
+        <div className="card-header d-flex justify-content-between align-items-center flex-wrap gap-2" style={{ backgroundColor: 'var(--bg-card)' }}>
           <h6 className="mb-0">Alunos Cadastrados ({alunos.length})</h6>
           <input className="form-control form-control-sm" style={{ width: 200 }} placeholder="Buscar aluno..." />
         </div>

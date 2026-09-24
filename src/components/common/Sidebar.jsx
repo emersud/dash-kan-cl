@@ -15,7 +15,7 @@ const NAV_ITEMS = [
   { key: 'users', label: 'Usuários', icon: 'bi-person-gear', onlyProfessor: true }
 ]
 
-export function Sidebar({ active, onNavigate, onLogout }) {
+export function Sidebar({ active, onNavigate, onLogout, open, onClose }) {
   const { usuarioLogado } = useApp()
   const [theme, setTheme] = useState(() => document.documentElement.getAttribute('data-theme') || 'dark')
 
@@ -30,14 +30,22 @@ export function Sidebar({ active, onNavigate, onLogout }) {
   }
 
   return (
-    <div className="sidebar p-0">
+    <div className={`sidebar p-0 ${open ? 'is-open' : ''}`}>
       <div className="p-3 border-bottom" style={{ borderColor: 'var(--border-color)' }}>
         <div className="d-flex align-items-center gap-2">
           <i className="bi bi-mortarboard-fill fs-3" style={{ color: 'var(--color-primary)' }}></i>
-          <div>
+          <div className="flex-grow-1">
             <div className="fw-bold brand-text">EduProject</div>
             <small className="text-muted-custom">Agile</small>
           </div>
+          <button
+            className="theme-toggle d-lg-none"
+            onClick={onClose}
+            aria-label="Fechar menu"
+            title="Fechar menu"
+          >
+            <i className="bi bi-x-lg"></i>
+          </button>
         </div>
       </div>
       <nav className="nav nav-pills flex-column p-2 gap-1">

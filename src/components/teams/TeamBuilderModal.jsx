@@ -116,7 +116,7 @@ export function TeamBuilderModal({ show, onClose, equipeEdit, restrito = false }
               </div>
             </div>
 
-            <div className="d-flex justify-content-between align-items-center mb-2">
+            <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
               <h6 className="mb-0">Seleção de Membros (Mix Multi-Turma)</h6>
               <select className="form-select form-select-sm" style={{ width: 200 }} value={filtroTurma} onChange={(e) => setFiltroTurma(e.target.value)}>
                 <option value="all">Todas as turmas</option>
