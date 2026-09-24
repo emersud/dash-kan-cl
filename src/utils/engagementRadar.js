@@ -36,21 +36,21 @@ export function calcularScoreEngajamento(alunoId, tarefas, historicoAtividades) 
   const score = Math.max(0, Math.min(100, Math.round(scoreBruto)))
 
   let situacao = 'Protagônico'
-  let badgeClass = 'bg-success'
-  let corHex = '#198754'
+  let badgeClass = 'badge-done'
+  let corHex = '#14c16e'
 
   if (score < 25) {
     situacao = 'Crítica (Risco de Evasão/Carona)'
-    badgeClass = 'bg-danger'
-    corHex = '#dc3545'
+    badgeClass = 'badge-danger'
+    corHex = '#ef4444'
   } else if (score < 55) {
     situacao = 'Atenção (Baixa Engajamento)'
-    badgeClass = 'bg-warning text-dark'
-    corHex = '#ffc107'
+    badgeClass = 'badge-pending'
+    corHex = '#f59e0b'
   } else if (score < 80) {
     situacao = 'Boa Participação'
-    badgeClass = 'bg-info text-dark'
-    corHex = '#0dcaf0'
+    badgeClass = 'badge-info'
+    corHex = '#1686b9'
   }
 
   return {

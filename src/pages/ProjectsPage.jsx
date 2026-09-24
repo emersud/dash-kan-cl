@@ -85,7 +85,7 @@ export default function ProjectsPage() {
                     <small className="text-muted-custom d-block mb-1">Equipes vinculadas</small>
                     <div className="d-flex flex-wrap gap-1">
                       {equipesProjeto.length === 0 ? (
-                        <span className="badge bg-secondary">Nenhuma equipe</span>
+                        <span className="badge badge-neutral">Nenhuma equipe</span>
                       ) : equipesProjeto.map(eq => (
                         <span key={eq.id} className="badge rounded-pill" style={{ backgroundColor: eq.cor_hex, color: '#fff' }}>
                           <i className="bi bi-people-fill me-1"></i>{eq.nome}

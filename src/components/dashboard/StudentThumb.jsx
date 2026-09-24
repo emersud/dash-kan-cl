@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext.jsx'
 
 const STATUS_CONFIG = {
   verde: { cor: '#14c16e', label: 'No prazo' },
-  amarelo: { cor: '#eab308', label: 'Em andamento' },
+  amarelo: { cor: '#f59e0b', label: 'Em andamento' },
   vermelho: { cor: '#ef4444', label: 'Em atraso' },
   sem: { cor: '#64748b', label: 'Sem tarefas' }
 }

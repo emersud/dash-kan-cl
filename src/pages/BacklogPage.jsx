@@ -96,7 +96,7 @@ export default function BacklogPage() {
                           )}
                         </td>
                         <td><Badge tipo={t.prioridade}>{PRIO_LABEL[t.prioridade] || t.prioridade}</Badge></td>
-                        <td className="text-muted-custom">{t.estimativa ? <span className="badge bg-dark">{t.estimativa}</span> : '—'}</td>
+                        <td className="text-muted-custom">{t.estimativa ? <span className="badge badge-neutral">{t.estimativa}</span> : '—'}</td>
                         <td><span style={{ color: eq?.cor_hex || 'var(--text-muted)' }}><i className="bi bi-people-fill me-1"></i>{eq?.nome || '—'}</span></td>
                         <td className="text-muted-custom"><i className="bi bi-person-circle me-1"></i>{al?.nome || '—'}</td>
                         <td className="text-muted-custom">{t.prazo_limite ? new Date(t.prazo_limite).toLocaleDateString('pt-BR') : '—'}</td>

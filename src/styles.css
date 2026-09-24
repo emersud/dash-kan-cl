@@ -1,69 +1,102 @@
 /* ==========================================================================
-   THEME DESIGN TOKENS - Fonte: CORES.MD (DEVBoard / MYwallet)
+   THEME DESIGN TOKENS (UPGRADE VERSION)
+   Fonte: esquema_de_cores_upgrade.md (harmonização do CORES.MD)
    Dark Mode (padrão) + Light Mode
    ========================================================================== */
 
 :root, [data-theme="dark"] {
   /* Palette Colors */
   --color-primary: #1686b9;
-  --color-primary-hover: #126e99;
+  --color-primary-hover: #1ea1dc;
   --color-secondary: #14c16e;
   --color-secondary-hover: #109e5a;
+  --color-warning: #f59e0b;
   --color-slate: #465567;
   --color-sky: #76bbf8;
 
-  /* Surfaces & Backgrounds */
+  /* Surfaces & Backgrounds (harmonizados, sem contraste abrupto) */
   --bg-app: #080e15;
   --bg-sidebar: #0d1620;
   --bg-card: #121f2d;
   --bg-card-hover: #18283a;
+  --bg-table-header: #0f1924;
   --bg-input: #0b131c;
-  --bg-badge: #1a2a3a;
+  --bg-badge: rgba(22, 134, 185, 0.15);
 
   /* Borders & Dividers */
   --border-color: #1e3044;
-  --border-focus: #1686b9;
+  --border-subtle: #162434;
+  --border-focus: #1ea1dc;
 
   /* Typography */
   --text-primary: #f0f4f8;
-  --text-secondary: #8c9ba5;
-  --text-muted: #5b6b79;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
   --text-on-primary: #ffffff;
 
-  /* Status Colors */
+  /* Status Badges Tokens */
+  --badge-done-bg: rgba(20, 193, 110, 0.15);
+  --badge-done-text: #34d399;
+  --badge-pending-bg: rgba(245, 158, 11, 0.15);
+  --badge-pending-text: #fbbf24;
+  --badge-info-bg: rgba(22, 134, 185, 0.2);
+  --badge-info-text: #38bdf8;
+  --badge-danger-bg: rgba(239, 68, 68, 0.15);
+  --badge-danger-text: #f87171;
+
+  /* Status Colors (Kanban) */
   --status-todo: #76bbf8;
-  --status-in-progress: #14c16e;
+  --status-in-progress: #1ea1dc;
   --status-review: #465567;
-  --status-done: #1686b9;
+  --status-done: #14c16e;
 }
 
-[data-theme="light"] {
+/* Light Mode Overrides */
+[data-theme="light"], .light {
+  /* Palette Adjustments for Light Contrast */
   --color-primary: #12729e;
   --color-primary-hover: #0e587a;
   --color-secondary: #0f9b58;
   --color-secondary-hover: #0c7b46;
+  --color-warning: #d97706;
   --color-slate: #5a6b7c;
-  --color-sky: #3b82f6;
+  --color-sky: #2563eb;
 
+  /* Surfaces & Backgrounds */
   --bg-app: #f4f7fa;
   --bg-sidebar: #ffffff;
   --bg-card: #ffffff;
   --bg-card-hover: #f8fafc;
+  --bg-table-header: #f1f5f9;
   --bg-input: #edf2f7;
   --bg-badge: #e2e8f0;
 
+  /* Borders & Dividers */
   --border-color: #e2e8f0;
+  --border-subtle: #f1f5f9;
   --border-focus: #12729e;
 
+  /* Typography */
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-muted: #94a3b8;
   --text-on-primary: #ffffff;
 
+  /* Status Badges Tokens */
+  --badge-done-bg: #d1fae5;
+  --badge-done-text: #065f46;
+  --badge-pending-bg: #fef3c7;
+  --badge-pending-text: #92400e;
+  --badge-info-bg: #e0f2fe;
+  --badge-info-text: #075985;
+  --badge-danger-bg: #fee2e2;
+  --badge-danger-text: #991b1b;
+
+  /* Status Colors (Kanban) */
   --status-todo: #2563eb;
-  --status-in-progress: #10b981;
+  --status-in-progress: #12729e;
   --status-review: #64748b;
-  --status-done: #0284c7;
+  --status-done: #0f9b58;
 }
 
 /* ==========================================================================
@@ -118,7 +151,8 @@ a {
   color: var(--text-primary);
 }
 
-.sidebar .nav-link.active {
+.sidebar .nav-link.active,
+.sidebar .nav-link.active:hover {
   background-color: var(--color-primary);
   color: var(--text-on-primary);
 }
@@ -135,6 +169,12 @@ a {
   background-color: var(--bg-card-hover);
 }
 
+.card-header {
+  background-color: var(--bg-card);
+  border-bottom-color: var(--border-color);
+  color: var(--text-primary);
+}
+
 /* Inputs */
 .form-control, .form-select {
   background-color: var(--bg-input);
@@ -145,7 +185,7 @@ a {
 .form-control:focus, .form-select:focus {
   background-color: var(--bg-input);
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 0.2rem rgba(22, 134, 185, 0.25);
+  box-shadow: 0 0 0 0.2rem rgba(30, 161, 220, 0.25);
   color: var(--text-primary);
 }
 
@@ -153,8 +193,21 @@ a {
   color: var(--text-muted);
 }
 
-/* Tables */
+.form-select option {
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+}
+
+/* Tables (Dark Surface harmonizada - sem branco sólido sobre o fundo escuro) */
 .table {
+  --bs-table-bg: var(--bg-card);
+  --bs-table-color: var(--text-primary);
+  --bs-table-border-color: var(--border-subtle);
+  --bs-table-striped-bg: var(--bg-card-hover);
+  --bs-table-striped-color: var(--text-primary);
+  --bs-table-hover-bg: var(--bg-card-hover);
+  --bs-table-hover-color: var(--text-primary);
+  background-color: var(--bg-card);
   color: var(--text-primary);
 }
 
@@ -163,13 +216,91 @@ a {
   background-color: var(--bg-card-hover);
 }
 
+.table > tbody > tr:nth-child(even) > * {
+  background-color: var(--bg-card-hover);
+}
+
+.table > tbody > tr:hover > * {
+  background-color: var(--bg-card-hover);
+}
+
 .table thead th {
+  background-color: var(--bg-table-header);
   color: var(--text-secondary);
   border-bottom-color: var(--border-color);
 }
 
 .table td, .table th {
-  border-color: var(--border-color);
+  border-color: var(--border-subtle);
+}
+
+.table-container {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* Badges de status (fundos semitransparentes, sem ruído de luminosidade) */
+.badge {
+  font-weight: 500;
+  border: none;
+}
+
+.badge-done {
+  background-color: var(--badge-done-bg) !important;
+  color: var(--badge-done-text) !important;
+}
+
+.badge-pending {
+  background-color: var(--badge-pending-bg) !important;
+  color: var(--badge-pending-text) !important;
+}
+
+.badge-info {
+  background-color: var(--badge-info-bg) !important;
+  color: var(--badge-info-text) !important;
+}
+
+.badge-danger {
+  background-color: var(--badge-danger-bg) !important;
+  color: var(--badge-danger-text) !important;
+}
+
+.badge-neutral {
+  background-color: var(--bg-badge) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Alertas harmonizados com os tokens de badge */
+.alert-success {
+  --bs-alert-color: var(--badge-done-text);
+  --bs-alert-bg: var(--badge-done-bg);
+  --bs-alert-border-color: transparent;
+}
+
+.alert-warning {
+  --bs-alert-color: var(--badge-pending-text);
+  --bs-alert-bg: var(--badge-pending-bg);
+  --bs-alert-border-color: transparent;
+}
+
+.alert-info {
+  --bs-alert-color: var(--badge-info-text);
+  --bs-alert-bg: var(--badge-info-bg);
+  --bs-alert-border-color: transparent;
+}
+
+.alert-danger {
+  --bs-alert-color: var(--badge-danger-text);
+  --bs-alert-bg: var(--badge-danger-bg);
+  --bs-alert-border-color: transparent;
+}
+
+.alert-secondary {
+  --bs-alert-color: var(--text-secondary);
+  --bs-alert-bg: var(--bg-badge);
+  --bs-alert-border-color: transparent;
 }
 
 /* Text helpers */
@@ -201,6 +332,82 @@ a {
   background-color: var(--color-secondary-hover);
   border-color: var(--color-secondary-hover);
   color: var(--text-on-primary);
+}
+
+/* Bootstrap semantic colors -> tokens do esquema upgrade */
+.btn-success {
+  --bs-btn-bg: var(--color-secondary);
+  --bs-btn-border-color: var(--color-secondary);
+  --bs-btn-hover-bg: var(--color-secondary-hover);
+  --bs-btn-hover-border-color: var(--color-secondary-hover);
+  --bs-btn-active-bg: var(--color-secondary-hover);
+  --bs-btn-active-border-color: var(--color-secondary-hover);
+  --bs-btn-disabled-bg: var(--color-secondary);
+  --bs-btn-disabled-border-color: var(--color-secondary);
+}
+
+.btn-warning {
+  --bs-btn-bg: var(--color-warning);
+  --bs-btn-border-color: var(--color-warning);
+  --bs-btn-color: #1a1200;
+  --bs-btn-hover-bg: var(--color-warning);
+  --bs-btn-hover-border-color: var(--color-warning);
+  --bs-btn-hover-color: #1a1200;
+}
+
+.btn-danger {
+  --bs-btn-bg: #dc3545;
+  --bs-btn-border-color: #dc3545;
+  --bs-btn-hover-bg: #bb2d3b;
+  --bs-btn-hover-border-color: #bb2d3b;
+  --bs-btn-active-bg: #bb2d3b;
+  --bs-btn-active-border-color: #bb2d3b;
+}
+
+.text-success { color: var(--color-secondary) !important; }
+.text-warning { color: var(--color-warning) !important; }
+.text-danger { color: var(--badge-danger-text) !important; }
+.bg-success { background-color: var(--color-secondary) !important; }
+.bg-warning { background-color: var(--color-warning) !important; }
+.bg-danger { background-color: var(--badge-danger-text) !important; }
+.bg-secondary { background-color: var(--color-slate) !important; }
+.bg-dark { background-color: var(--bg-table-header) !important; }
+.bg-info { background-color: var(--color-primary) !important; }
+.bg-primary { background-color: var(--color-primary) !important; }
+
+/* Bootstrap primary -> paleta do tema (outline, links, form-check) */
+:root, [data-theme="dark"] {
+  --bs-primary: #1686b9;
+  --bs-primary-rgb: 22, 134, 185;
+  --bs-primary-bg-subtle: rgba(22, 134, 185, 0.15);
+  --bs-primary-border-subtle: rgba(22, 134, 185, 0.3);
+  --bs-primary-text-emphasis: #38bdf8;
+  --bs-link-color: #1ea1dc;
+  --bs-link-hover-color: #76bbf8;
+}
+
+[data-theme="light"], .light {
+  --bs-primary: #12729e;
+  --bs-primary-rgb: 18, 114, 158;
+  --bs-primary-bg-subtle: #e0f2fe;
+  --bs-primary-border-subtle: #bae6fd;
+  --bs-primary-text-emphasis: #075985;
+  --bs-link-color: #12729e;
+  --bs-link-hover-color: #0e587a;
+}
+
+.form-check-input:checked {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* Progress bars */
+.progress {
+  background-color: var(--bg-input);
+}
+
+.progress-bar {
+  background-color: var(--color-primary);
 }
 
 /* Theme Toggle */
@@ -253,6 +460,12 @@ a {
 .status-review { color: var(--status-review); }
 .status-done { color: var(--status-done); }
 
+/* btn-close visível no dark mode */
+[data-theme="dark"] .btn-close,
+[data-theme="dark"] .btn-close-filter {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
 /* Modal */
 .modal-content {
   background-color: var(--bg-card);
@@ -262,6 +475,7 @@ a {
 
 .modal-header, .modal-footer {
   border-color: var(--border-color);
+  background-color: var(--bg-card);
 }
 
 .modal .form-control, .modal .form-select {
@@ -279,7 +493,7 @@ a {
   background: var(--bg-app);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--bg-badge);
+  background: var(--border-color);
   border-radius: 5px;
 }
 ::-webkit-scrollbar-thumb:hover {
@@ -384,7 +598,7 @@ a {
    - alvos de toque >= 44x44pt
    - inputs 16px (evita zoom automático no iOS)
    - grid de 8pt, hierarquia visual, thumb zone
-   - paleta preservada (tokens CORES.MD em :root)
+   - paleta preservada (tokens esquema_de_cores_upgrade.md em :root)
    Desktop >=992px NÃO é afetado (tudo abaixo é só mobile).
    ========================================================================== */
 

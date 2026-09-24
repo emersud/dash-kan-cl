@@ -3,10 +3,10 @@ import { Droppable, Draggable } from '@hello-pangea/dnd'
 import { TaskCard } from './TaskCard.jsx'
 
 const COL_STYLES = {
-  backlog: { color: 'var(--status-todo)', bg: 'rgba(100,116,139,0.18)' },
-  a_fazer: { color: 'var(--status-todo)', bg: 'rgba(118,187,248,0.12)' },
-  fazendo: { color: 'var(--status-in-progress)', bg: 'rgba(20,193,110,0.12)' },
-  concluido: { color: 'var(--status-done)', bg: 'rgba(22,134,185,0.15)' }
+  backlog: { color: 'var(--text-secondary)', bg: 'var(--bg-badge)' },
+  a_fazer: { color: 'var(--badge-info-text)', bg: 'var(--badge-info-bg)' },
+  fazendo: { color: 'var(--color-primary-hover)', bg: 'rgba(30, 161, 220, 0.15)' },
+  concluido: { color: 'var(--badge-done-text)', bg: 'var(--badge-done-bg)' }
 }
 
 const COL_ICON = {

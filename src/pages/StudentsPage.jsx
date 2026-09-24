@@ -190,7 +190,7 @@ export default function StudentsPage() {
                     <td><Badge tipo="aluno">{turma?.nome || 'Sem turma'}</Badge></td>
                     <td>
                       {aluno.primeiro_acesso
-                        ? <Badge tipo="baixa">Primeiro acesso</Badge>
+                        ? <Badge tipo="pendente">Primeiro acesso</Badge>
                         : <Badge tipo="concluido">Ativo</Badge>}
                     </td>
                   </tr>

@@ -8,7 +8,7 @@ export function RadarGauge({ score, corHex, situacao }) {
   return (
     <div className="d-flex flex-column align-items-center">
       <svg width="130" height="130" viewBox="0 0 130 130">
-        <circle cx="65" cy="65" r={raio} fill="none" stroke="var(--bg-badge)" strokeWidth="12" />
+        <circle cx="65" cy="65" r={raio} fill="none" stroke="var(--border-color)" strokeWidth="12" />
         <circle
           cx="65" cy="65" r={raio} fill="none"
           stroke={corHex} strokeWidth="12" strokeLinecap="round"

@@ -171,7 +171,7 @@ export default function StudentProfilePage() {
               <small className="text-muted-custom d-block mb-2">{usuarioLogado?.email}</small>
               <div className="d-flex justify-content-center gap-2 flex-wrap mb-3">
                 <Badge tipo="aluno">{usuarioLogado?.papel || 'aluno'}</Badge>
-                <Badge tipo="baixa">{minhaEquipe?.nome || 'Sem equipe'}</Badge>
+                <Badge tipo="aluno">{minhaEquipe?.nome || 'Sem equipe'}</Badge>
               </div>
               {minhaEquipe && (
                 <p className="small text-muted-custom mb-0">
@@ -285,7 +285,7 @@ export default function StudentProfilePage() {
                     </div>
                   </div>
                   <div className="d-flex justify-content-between align-items-center mt-2">
-                    <Badge tipo="baixa">{t.prioridade}</Badge>
+                    <Badge tipo={t.prioridade}>{t.prioridade}</Badge>
                     <button className="btn btn-success btn-sm" onClick={() => assumirTarefa(t)}>
                       <i className="bi bi-plus-circle me-1"></i>Assumir Tarefa
                     </button>

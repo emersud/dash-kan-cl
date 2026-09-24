@@ -1010,3 +1010,112 @@ SOLICITADAS PELO USUÁRIO EXECUTADAS E VALIDADAS COM npm run build).
      botões/inputs confortáveis ao toque, modais em tela cheia,
      kanban com scroll horizontal e tabelas roláveis; desktop inalterado.
 --------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-09-24] HARMONIZAÇÃO DE CORES - esquema_de_cores_upgrade.md ✔
+--------------------------------------------------------------------------------
+  SOLICITAÇÃO: analisar ADMIN/CORES.md (esquema antigo) e o novo
+  esquema_de_cores_upgrade.md; harmonizar as cores do sistema seguindo o
+  novo esquema, aplicar na aplicação, registrar no LOG e rodar o build.
+
+  ANÁLISE (CORES.MD antigo vs esquema_de_cores_upgrade.md):
+  * Problema 1: tabelas/cards com contraste abrupto (glare) sobre o fundo
+    deep slate (#080E15) — superfícies não unificadas.
+  * Problema 2: badges saturadas (bg-success/warning/danger sólidas) gerando
+    ruído de luminosidade no dark mode.
+  * Diferenças de tokens: --color-primary-hover (#126e99 -> #1ea1dc),
+    --bg-badge sólido (#1a2a3a) -> translúcido rgba(22,134,185,0.15),
+    --border-focus (#1686b9 -> #1ea1dc), --text-secondary/muted atualizados,
+    novos tokens --color-warning, --bg-table-header, --border-subtle e
+    Status Badges (--badge-done/pending/info em dark e light).
+
+  ALTERAÇÕES POR ARQUIVO:
+
+  1) src/styles.css (tokens + superfícies + badges + alertas)
+     * Cabeçalho do arquivo agora referencia esquema_de_cores_upgrade.md.
+     * TOKENS DARK (Upgrade): --color-primary-hover #1ea1dc; --color-warning
+       #f59e0b; --bg-table-header #0f1924; --bg-badge translúcido
+       rgba(22,134,185,0.15); --border-subtle #162434; --border-focus
+       #1ea1dc; --text-secondary #94a3b8; --text-muted #64748b; tokens de
+       badge (--badge-done/pending/info + danger estendido); status Kanban
+       (--status-in-progress #1ea1dc, --status-done #14c16e).
+     * TOKENS LIGHT (Upgrade): --color-warning #d97706; --color-sky
+       #2563eb; --bg-table-header #f1f5f9; --border-subtle #f1f5f9; badges
+       claros (#d1fae5/#065f46, #fef3c7/#92400e, #e0f2fe/#075985 + danger);
+       seletor de light agora inclui também .light.
+     * TABELAS harmonizadas (Dark Surface): .table com --bs-table-bg
+       var(--bg-card), bordas --border-subtle, zebra e hover em
+       --bg-card-hover, thead em --bg-table-header + --text-secondary;
+       nova classe .table-container (card da tabela com border/radius).
+     * BADGES semitransparentes: novas classes .badge-done, .badge-pending,
+       .badge-info, .badge-danger, .badge-neutral (fundos rgba/sólidos
+       claros conforme o guia — sem bg saturado puro).
+     * ALERTAS re-mapeados para os tokens de badge
+       (alert-success/warning/info/danger/secondary via --bs-alert-*).
+     * BOOTSTRAP SEMÂNTICO mapeado aos tokens: .btn-success/.btn-warning;
+       .text-success/.text-warning/.text-danger; .bg-success/.bg-warning/
+       .bg-danger/.bg-secondary/.bg-dark/.bg-info/.bg-primary; progress-bar
+       padrão em --color-primary; --bs-primary/--bs-link-color por tema
+       (outline buttons, links e form-check); opções de select com fundo
+       --bg-input; btn-close invertido no dark; modal header/footer em
+       --bg-card; card-header padrão em --bg-card; foco de input com
+       rgba(30,161,220,0.25); scrollbar thumb em --border-color.
+
+  2) src/components/common/Badge.jsx
+     * Mapa de classes reescrito para os tokens novos:
+       concluido/VERDE/professor -> badge-done;
+       media/AMARELO -> badge-pending; pendente (novo) -> badge-pending;
+       alta/urgente/VERMELHO -> badge-danger;
+       fazendo/a_fazer/aluno -> badge-info;
+       baixa/backlog/revisao/gestor -> badge-neutral.
+     * Fallback padrão: badge-neutral (antes bg-secondary).
+
+  3) src/components/kanban/TaskCard.jsx
+     * PRIO_CLASS e badges de estimativa/atrasada migradas para
+       badge-danger/badge-pending/badge-neutral (antes bg-* saturadas).
+
+  4) src/components/kanban/Column.jsx
+     * Cabeçalhos das colunas do Kanban com tokens de badge:
+       backlog -> neutral; a_fazer -> info; fazendo -> primary-hover com
+       fundo rgba(30,161,220,0.15); concluido -> done.
+
+  5) src/utils/engagementRadar.js
+     * badgeClass/corHex do radar: Protagonico -> badge-done #14c16e;
+       Atencao -> badge-pending #f59e0b; Boa Participacao -> badge-info
+       #1686b9; Critica -> badge-danger #ef4444 (antes bg-* Bootstrap e
+       cores #198754/#ffc107/#0dcaf0/#dc3545).
+
+  6) src/components/dashboard/StudentStatusDot.jsx e StudentThumb.jsx
+     * Semáforo amarelo alinhado ao --color-warning (#f59e0b, antes
+       #eab308).
+
+  7) src/components/dashboard/RadarGauge.jsx
+     * Trilho do gauge em --border-color (legível no dark; antes usava
+       --bg-badge que passou a ser translúcido).
+
+  8) src/pages/StudentsPage.jsx
+     * Badge "Primeiro acesso" usa tipo="pendente" (amber do guia),
+       antes tipo="baixa" (cinza).
+
+  9) src/pages/StudentProfilePage.jsx
+     * Badge da equipe -> tipo="aluno" (info); badge de prioridade de
+       backlog agora usa tipo={t.prioridade} (cores corretas por nível).
+
+  10) src/pages/BacklogPage.jsx, ProjectsPage.jsx, UsersPage.jsx
+      * Badges residuais bg-dark/bg-secondary migradas para
+        badge-neutral.
+
+  OBSERVAÇÕES:
+  * Projeto usa Bootstrap 5 (não há tailwind.config); o trecho de
+    Tailwind do guia foi ignorado por não se aplicar.
+  * Tokens --status-* mantidos (consumidos pelo Kanban) e ajustados ao
+    novo significado (done verde, in-progress cyan).
+
+  VALIDAÇÃO: npm run build - SUCESSO (175 módulos transformados,
+  built in ~3.6s).
+  -> VISUALIZÁVEL: tabelas integradas à dark surface dos cards (sem
+     glare), badges de status translúcidas (done/pending/info/danger),
+     alertas e botões semânticos nos tokens do novo esquema, both
+     Dark e Light harmonizados.
+--------------------------------------------------------------------------------
+

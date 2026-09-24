@@ -24,7 +24,7 @@ export function StudentStatusDot({ alunoId }) {
 
   const config = {
     verde: { cor: '#14c16e', label: 'Concluído', icon: 'bi-circle-fill' },
-    amarelo: { cor: '#eab308', label: 'Em Andamento', icon: 'bi-circle-fill' },
+    amarelo: { cor: '#f59e0b', label: 'Em Andamento', icon: 'bi-circle-fill' },
     vermelho: { cor: '#ef4444', label: 'Pendente/Atrasado', icon: 'bi-circle-fill' },
     sem: { cor: '#64748b', label: 'Sem tarefas', icon: 'bi-circle' }
   }

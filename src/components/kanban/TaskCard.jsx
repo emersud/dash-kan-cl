@@ -1,6 +1,6 @@
 import React from 'react'
 
-const PRIO_CLASS = { alta: 'bg-danger', media: 'bg-warning text-dark', baixa: 'bg-secondary', urgente: 'bg-danger' }
+const PRIO_CLASS = { alta: 'badge-danger', media: 'badge-pending', baixa: 'badge-neutral', urgente: 'badge-danger' }
 const PRIO_LABEL = { alta: 'Alta', media: 'Média', baixa: 'Baixa', urgente: 'Urgente' }
 
 export function TaskCard({ tarefa, aluno, onClick }) {
@@ -16,14 +16,14 @@ export function TaskCard({ tarefa, aluno, onClick }) {
     >
       <div className="card-body p-2" style={{ backgroundColor: 'var(--bg-card)' }}>
         <div className="d-flex justify-content-between align-items-start mb-1">
-          <span className={`badge ${PRIO_CLASS[tarefa.prioridade] || 'bg-secondary'}`} style={{ fontSize: '0.65rem' }}>
+          <span className={`badge ${PRIO_CLASS[tarefa.prioridade] || 'badge-neutral'}`} style={{ fontSize: '0.65rem' }}>
             {PRIO_LABEL[tarefa.prioridade] || tarefa.prioridade}
           </span>
           <div className="d-flex align-items-center gap-1">
             {tarefa.estimativa && (
-              <span className="badge bg-dark" style={{ fontSize: '0.65rem' }} title="Estimativa">{tarefa.estimativa}</span>
+              <span className="badge badge-neutral" style={{ fontSize: '0.65rem' }} title="Estimativa">{tarefa.estimativa}</span>
             )}
-            {atrasada && <span className="badge bg-danger" style={{ fontSize: '0.65rem' }}><i className="bi bi-exclamation-triangle-fill me-1"></i>Atrasada</span>}
+            {atrasada && <span className="badge badge-danger" style={{ fontSize: '0.65rem' }}><i className="bi bi-exclamation-triangle-fill me-1"></i>Atrasada</span>}
           </div>
         </div>
 

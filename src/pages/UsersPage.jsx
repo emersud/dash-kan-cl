@@ -203,7 +203,7 @@ export default function UsersPage() {
                     <td>
                       <i className="bi bi-person-circle me-2" style={{ color: 'var(--color-primary)' }}></i>
                       {user.nome}
-                      {ehProprio && <span className="badge bg-secondary ms-2 rounded-pill">você</span>}
+                      {ehProprio && <span className="badge badge-neutral ms-2 rounded-pill">você</span>}
                     </td>
                     <td className="text-muted-custom">{user.email}</td>
                     <td><Badge tipo={user.papel}>{PAPEIS.find(p => p.valor === user.papel)?.label || user.papel}</Badge></td>
