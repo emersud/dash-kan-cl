@@ -19,6 +19,7 @@ export default function KanbanPage() {
       )
 
   const [projetoId, setProjetoId] = useState(projetosVisiveis[0]?.id || '')
+  const [equipeFiltroId, setEquipeFiltroId] = useState('all')
   const [tarefaDetalhe, setTarefaDetalhe] = useState(null)
 
   // Quando projetos carregam depois da montagem, seleciona o primeiro.
@@ -30,13 +31,42 @@ export default function KanbanPage() {
     }
   }, [projetosVisiveis, projetoId])
 
+  // Reset do filtro de equipe quando troca de projeto
+  useEffect(() => {
+    setEquipeFiltroId('all')
+  }, [projetoId])
+
   const projeto = projetosVisiveis.find(p => p.id === projetoId)
+
+  // Equipes disponíveis para o filtro do professor/gestor:
+  // prioriza equipes vinculadas ao projeto selecionado; se nenhuma, mostra todas.
+  const equipesVisiveisFiltro = ehProfessor
+    ? (() => {
+        const idsProjeto = new Set(projeto?.equipes_ids || [])
+        const doProjeto = equipes.filter(e => idsProjeto.has(e.id))
+        return doProjeto.length > 0 ? doProjeto : equipes
+      })()
+    : []
+
+  // Filtro efetivo de equipe: professor escolhe (all ou id); aluno = sempre as suas equipes
+  const equipeFiltro = ehProfessor
+    ? (equipeFiltroId === 'all' ? null : equipeFiltroId)
+    : (equipePrincipal?.id || null)
+  const idsEquipesAluno = ehProfessor ? null : idsMinhasEquipes
 
   const excluirTarefa = async (id) => {
     await ds.removerTarefa(id)
     setTarefaDetalhe(null)
     await refreshAll()
   }
+
+  const tarefasVisiveis = tarefas.filter(t =>
+    t.projeto_id === projetoId &&
+    (ehProfessor
+      ? (equipeFiltroId === 'all' || t.equipe_id === equipeFiltroId)
+      : idsMinhasEquipes.has(t.equipe_id)
+    )
+  )
 
   return (
     <div>
@@ -45,10 +75,26 @@ export default function KanbanPage() {
           <h4 className="mb-1">Kanban</h4>
           <small className="text-muted-custom">Quadro de 4 colunas com drag-and-drop e checklist</small>
         </div>
-        <select className="form-select" style={{ width: 300 }} value={projetoId} onChange={(e) => setProjetoId(e.target.value)}>
-          {projetosVisiveis.length === 0 && <option value="">Nenhum projeto</option>}
-          {projetosVisiveis.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
-        </select>
+        <div className="page-header-actions d-flex gap-2">
+          <select className="form-select" style={{ width: 280 }} value={projetoId} onChange={(e) => setProjetoId(e.target.value)}>
+            {projetosVisiveis.length === 0 && <option value="">Nenhum projeto</option>}
+            {projetosVisiveis.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+          </select>
+          {ehProfessor && (
+            <select
+              className="form-select"
+              style={{ width: 220 }}
+              value={equipeFiltroId}
+              onChange={(e) => setEquipeFiltroId(e.target.value)}
+              title="Filtrar por equipe para acompanhar e validar"
+            >
+              <option value="all">Todas as equipes</option>
+              {equipesVisiveisFiltro.map(eq => (
+                <option key={eq.id} value={eq.id}>{eq.nome}</option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
 
       {!projeto ? (
@@ -61,13 +107,19 @@ export default function KanbanPage() {
       ) : (
         <>
           <div className="mb-2 text-muted-custom small">
-            {tarefas.filter(t => t.projeto_id === projetoId && (ehProfessor || idsMinhasEquipes.has(t.equipe_id))).length} tarefas
+            {tarefasVisiveis.length} tarefa(s)
+            {ehProfessor && equipeFiltroId !== 'all' && (
+              <span> · equipe: {equipes.find(e => e.id === equipeFiltroId)?.nome || ''}</span>
+            )}
+            {!ehProfessor && minhasEquipes.length > 0 && (
+              <span> · {minhasEquipes.map(e => e.nome).join(', ')}</span>
+            )}
           </div>
           <BoardKanban
             projeto={projeto}
             onCardClick={setTarefaDetalhe}
-            equipeFiltro={ehProfessor ? null : (equipePrincipal?.id || null)}
-            idsEquipesAluno={ehProfessor ? null : idsMinhasEquipes}
+            equipeFiltro={equipeFiltro}
+            idsEquipesAluno={idsEquipesAluno}
           />
           <TaskDetailModal show={!!tarefaDetalhe} tarefa={tarefaDetalhe} onClose={() => setTarefaDetalhe(null)} onDelete={excluirTarefa} permitirExcluir={ehProfessor} permitirAprovar={ehProfessor} />
         </>

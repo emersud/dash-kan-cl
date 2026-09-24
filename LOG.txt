@@ -1119,3 +1119,33 @@ SOLICITADAS PELO USUÁRIO EXECUTADAS E VALIDADAS COM npm run build).
      Dark e Light harmonizados.
 --------------------------------------------------------------------------------
 
+--------------------------------------------------------------------------------
+[2026-09-24] KANBAN POR PERFIL - PROFESSOR/ALUNO (diretivas ADMIN/PROJ*.md) ?
+
+KanbanPage.jsx:
+  - Novo seletor de EQUIPE para professor/gestor (ao lado do de projeto):
+    "Todas as equipes" + equipes do projeto selecionado (fallback: todas).
+  - Reset automatico do filtro de equipe ao trocar de projeto.
+  - Contador de tarefas e cabecalho indicam a equipe filtrada / equipes do aluno.
+
+BoardKanban.jsx:
+  - passaFiltro reescrito: aluno SEMPRE limitado as proprias equipes;
+    professor/gestor respeita equipeFiltro (null = todas as equipes).
+  - Blindagem no drag: aluno nao move card de equipe alheia.
+  - "Concluido" por aluno => apenas SOLICITACAO (aguardando_validacao=true,
+    card fica "Em analise"); so professor/gestor insere a flag de concluida
+    (aguardando_validacao=false) e validam/concluem.
+  - Sair da coluna "concluido" exige professor/gestor.
+
+TaskDetailModal.jsx:
+  - "Aprovar como Concluida" e "Excluir" visiveis/efetivos apenas para
+    professor/gestor (re-checagem de papel no handler e no footer).
+  - Alerta de validacao distingue visao do professor (acao pendente) x
+    do aluno (aguardando aprovacao).
+
+permissions.js:
+  - podeMoverTarefaKanban(): prof/gestor sempre; aluno so nas suas equipes.
+  - podeValidarConclusao(papel): so professor/gestor.
+
+Build: SUCESSO (vite, 175 modulos).
+--------------------------------------------------------------------------------

@@ -15,10 +15,14 @@ const COLUNAS = [
 export function BoardKanban({ projeto, onCardClick, equipeFiltro = null, idsEquipesAluno = null }) {
   const { tarefas, usuarios, setTarefas, refreshAll, usuarioLogado } = useApp()
   const ehProfessor = isProfessor(usuarioLogado?.papel)
+
+  // Filtragem por equipe:
+  // - Aluno: SEMPRE limitado às equipes em que participa (idsEquipesAluno)
+  // - Professor/Gestor: respeita equipeFiltro (null = todas; id = equipe específica)
   const passaFiltro = (t) => {
-    if (ehProfessor || (!equipeFiltro && !idsEquipesAluno)) return true
     if (idsEquipesAluno) return idsEquipesAluno.has(t.equipe_id)
-    return t.equipe_id === equipeFiltro
+    if (equipeFiltro) return t.equipe_id === equipeFiltro
+    return true
   }
   const tarefasProjeto = tarefas.filter(t => t.projeto_id === projeto.id && passaFiltro(t))
 
@@ -28,8 +32,16 @@ export function BoardKanban({ projeto, onCardClick, equipeFiltro = null, idsEqui
     if (destination.droppableId === source.droppableId && destination.index === source.index) return
 
     const tarefa = tarefas.find(t => t.id === draggableId)
+    if (!tarefa) return
+
+    // BLINDAGEM: aluno só mexe em cards da própria equipe
+    if (!ehProfessor && idsEquipesAluno && !idsEquipesAluno.has(tarefa.equipe_id)) return
+
     const novaStatus = destination.droppableId
 
+    // REGRA: flag "concluída" (validada, sem pendência) só é inserida por professor/gestor.
+    // Aluno que arrasta para "Concluído" apenas SOLICITA validação (aguardando_validacao=true)
+    // e o card permanece "em análise" até o professor aprovar.
     if (novaStatus === 'concluido' && !ehProfessor) {
       const atualizada = { ...tarefa, status: 'concluido', aguardando_validacao: true }
       setTarefas(tarefas.map(t => t.id === draggableId ? atualizada : t))
@@ -44,13 +56,14 @@ export function BoardKanban({ projeto, onCardClick, equipeFiltro = null, idsEqui
     }
 
     if (novaStatus === 'concluido' && ehProfessor) {
+      // Professor/gestor valida e insere a flag de concluída de fato
       const atualizada = { ...tarefa, status: 'concluido', aguardando_validacao: false }
       setTarefas(tarefas.map(t => t.id === draggableId ? atualizada : t))
       await ds.atualizarTarefa(draggableId, { status: 'concluido', aguardando_validacao: false })
       await ds.registrarAtividade({
         usuario_id: tarefa.aluno_id,
         tipo_acao: 'movimentou_card',
-        descricao: `Validou a tarefa "${tarefa.titulo}" como concluída`
+        descricao: `${usuarioLogado?.papel === 'gestor' ? 'Gestor' : 'Professor'} validou a tarefa "${tarefa.titulo}" como concluída`
       })
       await refreshAll()
       return
@@ -64,6 +77,11 @@ export function BoardKanban({ projeto, onCardClick, equipeFiltro = null, idsEqui
       const all = tarefas.filter(t => !(t.projeto_id === projeto.id && t.status === novaStatus && passaFiltro(t)))
       setTarefas([...all, ...reordered])
     } else {
+      // Movimentação entre colunas (backlog/a_fazer/fazendo): aluno e professor podem,
+      // mas SAIR de "concluído" ou alterar validação exige professor/gestor.
+      const saindoDeConcluido = source.droppableId === 'concluido'
+      if (saindoDeConcluido && !ehProfessor) return
+
       const updated = { ...tarefa, status: novaStatus, aguardando_validacao: false }
       setTarefas(tarefas.map(t => t.id === draggableId ? updated : t))
       await ds.atualizarTarefa(draggableId, { status: novaStatus, aguardando_validacao: false })

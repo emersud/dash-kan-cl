@@ -6,16 +6,23 @@ import { Badge } from '../common/Badge.jsx'
 const PRIO_LABEL = { alta: 'Alta', media: 'Média', baixa: 'Baixa', urgente: 'Urgente' }
 
 export function TaskDetailModal({ show, tarefa, onClose, onDelete, permitirExcluir = true, permitirAprovar = false }) {
-  const { usuarios, refreshAll } = useApp()
+  const { usuarios, refreshAll, usuarioLogado } = useApp()
   const [novoItem, setNovoItem] = useState('')
 
   if (!show || !tarefa) return null
 
+  const ehProfessor = usuarioLogado?.papel === 'professor' || usuarioLogado?.papel === 'gestor'
   const aluno = usuarios.find(u => u.id === tarefa.aluno_id)
 
   const aprovarConcluida = async () => {
+    // Somente professor/gestor insere a flag de concluída (validação final)
+    if (!ehProfessor) return
     await ds.atualizarTarefa(tarefa.id, { status: 'concluido', aguardando_validacao: false })
-    await ds.registrarAtividade({ usuario_id: tarefa.aluno_id, tipo_acao: 'movimentou_card', descricao: `Professor aprovou "${tarefa.titulo}" como concluída` })
+    await ds.registrarAtividade({
+      usuario_id: tarefa.aluno_id,
+      tipo_acao: 'aprovou_conclusao',
+      descricao: `${usuarioLogado?.papel === 'gestor' ? 'Gestor' : 'Professor'} aprovou "${tarefa.titulo}" como concluída`
+    })
     await refreshAll()
     onClose()
   }
@@ -53,9 +60,14 @@ export function TaskDetailModal({ show, tarefa, onClose, onDelete, permitirExclu
             </div>
 
             {tarefa.aguardando_validacao && (
-              <div className="alert alert-warning py-2 small">
-                <i className="bi bi-hourglass-split me-1"></i>
-                Esta tarefa está <strong>em análise</strong>. O aluno a enviou como concluída aguardando aprovação do professor.
+              <div className={`alert py-2 small ${ehProfessor ? 'alert-warning' : 'alert-info'}`}>
+                {ehProfessor ? (
+                  <><i className="bi bi-hourglass-split me-1"></i>
+                  Esta tarefa aguarda <strong>sua validação</strong>. O aluno enviou como concluída — clique em "Aprovar como Concluída" para inserir a flag de concluído.</>
+                ) : (
+                  <><i className="bi bi-hourglass-split me-1"></i>
+                  Esta tarefa está <strong>em análise</strong>. Você solicitou a conclusão — aguarde a aprovação do professor/gestor.</>
+                )}
               </div>
             )}
 
@@ -97,9 +109,9 @@ export function TaskDetailModal({ show, tarefa, onClose, onDelete, permitirExclu
             </div>
           </div>
           <div className="modal-footer d-flex justify-content-between">
-            {permitirAprovar && tarefa.aguardando_validacao
+            {ehProfessor && permitirAprovar && tarefa.aguardando_validacao
               ? <button className="btn btn-success btn-sm" onClick={aprovarConcluida}><i className="bi bi-check2-circle me-1"></i>Aprovar como Concluída</button>
-              : permitirExcluir
+              : permitirExcluir && ehProfessor
                 ? <button className="btn btn-danger btn-sm" onClick={() => onDelete(tarefa.id)}><i className="bi bi-trash me-1"></i>Excluir</button>
                 : <span></span>}
             <button className="btn btn-secondary btn-sm" onClick={onClose}>Fechar</button>
