@@ -30,17 +30,22 @@ export function TeamHealthCard({ equipe }) {
         </div>
 
         <div className="d-flex justify-content-between mb-1">
-          <span className="text-muted-custom small">Conclusão</span>
+          <span className="text-muted-custom small" title="Só conta tarefas com a flag de validação do professor/gestor">Conclusão</span>
           <span className="small fw-bold">{saude.percentual}%</span>
         </div>
         <div className="progress mb-3" style={{ height: 8, backgroundColor: 'var(--bg-badge)' }}>
           <div className={`progress-bar bg-${saude.cor}`} style={{ width: `${saude.percentual}%` }}></div>
         </div>
 
-        <div className="d-flex gap-3 mb-2 small">
+        <div className="d-flex gap-3 mb-2 small flex-wrap">
           <span className="text-muted-custom"><i className="bi bi-list-task me-1"></i>{saude.total} total</span>
           <span className="text-success"><i className="bi bi-check-circle-fill me-1"></i>{saude.concluidas}</span>
           <span className="text-danger"><i className="bi bi-exclamation-circle-fill me-1"></i>{saude.atrasadas} atrasadas</span>
+          {saude.emValidacao > 0 && (
+            <span className="badge badge-pending" title="Concluídas pelo aluno, aguardando validação do professor/gestor">
+              <i className="bi bi-hourglass-split me-1"></i>{saude.emValidacao} em validação
+            </span>
+          )}
         </div>
 
         {saude.alertas.length > 0 && (

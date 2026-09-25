@@ -28,7 +28,7 @@ function calcularStreak(dailyRegisters, alunoId) {
 }
 
 export default function DailyRegisterPage() {
-  const { usuarioLogado, tarefas, equipes, usuarios, dailyRegisters, setDailyRegisters } = useApp()
+  const { usuarioLogado, tarefas, equipes, usuarios, dailyRegisters, setDailyRegisters, refreshAll } = useApp()
   const [oQueFez, setOQueFez] = useState('')
   const [licao, setLicao] = useState('')
   const [impedimento, setImpedimento] = useState('')
@@ -75,10 +75,20 @@ export default function DailyRegisterPage() {
   }
 
   const concluirTarefa = async (t) => {
-    if (t.status === 'concluido') return
-    await ds.atualizarTarefa(t.id, { status: 'concluido' })
-    await ds.registrarAtividade({ usuario_id: alunoId, tipo_acao: 'movimentou_card', descricao: `Concluiu a tarefa "${t.titulo}"` })
-    setDailyRegisters([...dailyRegisters])
+    // Já efetivada (flag do professor) — nada a fazer. Pendente de validação pode ser validada.
+    if (t.status === 'concluido' && !t.aguardando_validacao) return
+    // REGRA: aluno solicita (em análise); professor/gestor insere a flag de concluída.
+    const validado = ehProfessor
+    await ds.atualizarTarefa(t.id, { status: 'concluido', aguardando_validacao: !validado })
+    await ds.registrarAtividade({
+      usuario_id: alunoId,
+      tarefa_id: t.id,
+      tipo_acao: validado ? 'aprovou_conclusao' : 'movimentou_card',
+      descricao: validado
+        ? `Professor validou a tarefa "${t.titulo}" como concluída`
+        : `Solicitou validação da tarefa "${t.titulo}" (em análise)`
+    })
+    await refreshAll()
   }
 
   const getNome = (id) => usuarios.find(u => u.id === id)?.nome || 'Aluno'
@@ -144,7 +154,7 @@ export default function DailyRegisterPage() {
                   <label className="form-label text-muted-custom small">O que você fez hoje?</label>
                   <textarea className="form-control mb-3" rows={2} placeholder="Ex: Finalizei o protótipo..." value={oQueFez} onChange={(e) => setOQueFez(e.target.value)}></textarea>
                   <label className="form-label text-muted-custom small">Lições aprendidas ({licao.length}/280)</label>
-                  <textarea className="form-control mb-3" rows={2} maxLength={280} placeholder="Ex: Aprendi a tratar RLS no Supabase..." value={licao} onChange={(e) => setLicao(e.target.value)}></textarea>
+                  <textarea className="form-control mb-3" rows={2} maxLength={280} placeholder="Ex: Aprendi a trabalhar com o novo layout do projeto..." value={licao} onChange={(e) => setLicao(e.target.value)}></textarea>
                   <label className="form-label text-muted-custom small">Impedimentos / Bloqueios</label>
                   <textarea className="form-control mb-3" rows={2} placeholder="Ex: Aguardando design system..." value={impedimento} onChange={(e) => setImpedimento(e.target.value)}></textarea>
                   <button className="btn btn-primary-theme w-100" onClick={registrarCheckin}>
@@ -167,11 +177,20 @@ export default function DailyRegisterPage() {
               ) : tarefasAluno.map(t => (
                 <div key={t.id} className="d-flex align-items-center justify-content-between p-2 rounded mb-2" style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}>
                   <div>
-                    <div className={`small ${t.status === 'concluido' ? 'text-decoration-line-through text-muted-custom' : ''}`}>{t.titulo}</div>
-                    <small className="text-muted-custom">{t.status === 'concluido' ? 'Concluída' : 'Pendente'}</small>
+                    <div className={`small ${(t.status === 'concluido' && !t.aguardando_validacao) ? 'text-decoration-line-through text-muted-custom' : ''}`}>{t.titulo}</div>
+                    <small className="text-muted-custom">
+                      {t.status === 'concluido'
+                        ? (t.aguardando_validacao ? 'Em análise (aguardando validação)' : 'Concluída')
+                        : 'Pendente'}
+                    </small>
                   </div>
                   {!ehProfessor && t.status !== 'concluido' && (
                     <button className="btn btn-success btn-sm" onClick={() => concluirTarefa(t)}><i className="bi bi-check-lg me-1"></i>Concluir</button>
+                  )}
+                  {ehProfessor && t.aguardando_validacao && (
+                    <button className="btn btn-primary-theme btn-sm" title="Validar e inserir a flag de concluída" onClick={() => concluirTarefa(t)}>
+                      <i className="bi bi-flag-fill me-1"></i>Validar
+                    </button>
                   )}
                 </div>
               ))}

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { useApp } from '../../context/AppContext.jsx'
 import * as ds from '../../services/dataService.js'
+import { podeCriarProjeto } from '../../utils/permissions.js'
 
 export function ProjectForm({ show, onClose, projetoEdit }) {
-  const { equipes, refreshAll } = useApp()
+  const { equipes, refreshAll, usuarioLogado } = useApp()
   const [nome, setNome] = useState(projetoEdit?.nome || '')
   const [descricao, setDescricao] = useState(projetoEdit?.descricao || '')
   const [dataInicio, setDataInicio] = useState(
@@ -39,6 +40,11 @@ export function ProjectForm({ show, onClose, projetoEdit }) {
 
   const salvar = async () => {
     setErro('')
+    // Regra: aluno NÃO cria nem edita projetos (só professor/gestor).
+    if (!podeCriarProjeto(usuarioLogado?.papel)) {
+      setErro('Somente professor/gestor pode criar ou editar projetos.')
+      return
+    }
     if (!nome.trim()) { setErro('Informe o nome do projeto.'); return }
     if (!dataEntrega) { setErro('Informe a data de entrega.'); return }
     if (equipesIds.length === 0) { setErro('Vincule pelo menos uma equipe.'); return }

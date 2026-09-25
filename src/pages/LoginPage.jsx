@@ -32,7 +32,7 @@ export default function LoginPage({ onLoginSuccess }) {
     setErro('')
     setSucesso('')
     if (!isSupabaseDisponivel()) {
-      setErro('Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no ambiente.')
+      setErro('Serviço indisponível no momento. Tente novamente mais tarde.')
       return
     }
     setCarregando(true)
@@ -64,7 +64,7 @@ export default function LoginPage({ onLoginSuccess }) {
       return
     }
     if (!isSupabaseDisponivel()) {
-      setErro('Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no ambiente.')
+      setErro('Serviço indisponível no momento. Tente novamente mais tarde.')
       return
     }
     setCarregando(true)

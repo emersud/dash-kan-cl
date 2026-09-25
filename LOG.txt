@@ -1149,3 +1149,530 @@ permissions.js:
 
 Build: SUCESSO (vite, 175 modulos).
 --------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-09-25] PERFORMANCE NA EXCLUSÃO DE EQUIPES (lentidão/travamento) ✔
+--------------------------------------------------------------------------------
+  SOLICITAÇÃO: analisar os arquivos do sistema e corrigir a lentidão/travamento
+  durante a etapa de exclusão de equipes e a demora para removê-las da tela.
+
+  DIAGNÓSTICO:
+  * UI: remover() sem try/catch e sem estado de carregamento — em erro o modal
+    ficava preso e a equipe nunca saía da tela; em sucesso eram exigidos 2
+    round-trips (DELETE + refetch de todas as equipes e todos os membros) antes
+    de qualquer mudança visual; cliques repetidos enfileiravam exclusões
+    concorrentes.
+  * Re-render: StudentThumb recalculava 3 filtros sobre TODAS as tarefas para
+    cada membro, sem memoização; getAluno usava usuarios.find por membro;
+    equipesVisiveis sem useMemo.
+  * Banco: faltava índice em daily_registers.equipe_id (FK com on delete
+    cascade na tabela que mais cresce) -> sequential scan a cada exclusão.
+  * Banco: auditoria POR LINHA em todas as tabelas atingidas pela cascata
+    (equipe_membros, daily_registers, tarefas com SET NULL) -> 1 insert em
+    historico_acoes por linha, cada um serializando a linha em jsonb 2x.
+
+  ALTERAÇÕES POR ARQUIVO:
+
+  1) src/pages/TeamsPage.jsx
+     * remover() com remoção OTIMISTA: a equipe sai da tela no clique e o
+       estado local espelha o cascade do schema (tarefas.equipe_id -> null,
+       projetos.equipes_ids sem a equipe, daily_registers filtrados).
+     * try/catch com rollback (refetch de equipes/tarefas/projetos) + alerta
+       de erro removível; estado "removendo" desabilita os botões (evita
+       exclusões concorrentes); banner "Excluindo equipe..." na requisição.
+     * Sem refetch de rede no sucesso (antes: 2 requisições por exclusão).
+     * useMemo em equipesVisiveis e em Map de usuarios; getAluno via Map;
+       abrirRadarAluno com useCallback (props estáveis para o memo).
+     * Texto do modal corrigido: as tarefas NÃO são excluídas (o schema usa
+       on delete set null); membros, check-ins e vínculos são removidos.
+
+  2) src/components/dashboard/StudentThumb.jsx
+     * React.memo + useMemo no cálculo do status (cálculo cacheado por aluno);
+       prop renomeada onClickable -> onSelect (recebe o id do aluno).
+
+  3) src/services/dataService.js
+     * removerEquipe (modo mock) agora espelha o schema real: tarefas com
+       equipe_id = null + remoção dos daily_registers da equipe.
+
+  4) supabase/migrations/0005_performance_exclusao_equipes.sql (NOVO)
+     * create index idx_daily_equipe on public.daily_registers (equipe_id).
+     * audit_acao() otimizada: to_jsonb calculado UMA única vez por operação.
+     * daily_registers: DELETE auditado EM LOTE (trigger AFTER STATEMENT com
+       tabela de transição old_table) -> 1 linha de auditoria por instrução,
+       inclusive a cascata da exclusão de equipes/usuários; INSERT/UPDATE
+       continuam auditados linha a linha (detalhe mantido).
+
+  5) ADMIN/DEPLOY.md
+     * Migração 0005 adicionada à lista de migrações (pode ser aplicada em
+       banco já existente).
+
+  PENDENTE (manual): executar 0005_performance_exclusao_equipes.sql inteiro no
+  SQL Editor do Supabase para valer o índice e a auditoria em lote.
+
+  VALIDAÇÃO: npm run build - SUCESSO (175 módulos transformados).
+  -> VISUALIZÁVEL: a equipe some da tela instantaneamente ao confirmar a
+     exclusão; falha do servidor exibe alerta e restaura a lista; as exclusões
+     seguintes não disparam mais refetch de equipes/membros.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-09-25] ORDENAÇÃO POR SETA + FILTROS (Usuários) e ORDENAÇÃO (Backlog) ✔
+--------------------------------------------------------------------------------
+  SOLICITAÇÃO: na tabela da tela "Gerenciar Usuários" inserir critérios de
+  ordenação estilo seta (Usuário, E-mail, Perfil de Acesso e Turma) e seleção
+  por turma, nome ou perfil de acesso; na tabela da tela "Backlog do Projeto"
+  inserir ordenação por seta em Tarefa, Prioridade, Estim., Equipe,
+  Responsável, Prazo e Status.
+
+  ALTERAÇÕES POR ARQUIVO:
+
+  1) src/components/common/TableSort.jsx (NOVO)
+     * useOrdenacao(campo, direcao): clique no cabeçalho alterna asc <-> desc;
+       o primeiro clique ordena ascendente.
+     * ordenarPor(lista, getters, campo, direcao): números/datas ordenam por
+       valor, textos com locale pt-BR (numeric: true); itens vazios/sem valor
+       ficam SEMPRE no final, em qualquer direção.
+     * ThOrdenavel: <th> clicável com aria-sort, tooltip de ajuda e seta
+       bi-arrow-up / bi-arrow-down quando ativo, bi-arrow-down-up quando
+       inativo (ícones existentes no bootstrap-icons instalado).
+
+  2) src/pages/UsersPage.jsx
+     * Cabeçalhos Usuário, E-mail, Perfil de Acesso e Turma -> ThOrdenavel
+       (padrão inicial: Usuário A->Z).
+     * Novo seletor de TURMA no card-header: "Todas as turmas / Sem turma /
+       <turma>", somando-se à busca por nome/e-mail e ao filtro de perfil de
+       acesso já existentes.
+     * Lista derivada em useMemo (busca + filtros -> ordenação) e Map de
+       turmas (antes find por linha).
+
+  3) src/pages/BacklogPage.jsx
+     * Cabeçalhos Tarefa, Prioridade, Estim., Equipe, Responsável, Prazo e
+       Status -> ThOrdenavel (sem ordenação inicial: preserva a ordem atual).
+     * Ordem lógica dos valores: prioridade baixa<media<alta<urgente; status
+       backlog<a_fazer<fazendo<revisao<concluido; estimativa P<M<G<1<2<3<5<8;
+       prazo por data real (tarefas sem prazo por último); Equipe e
+       Responsável ordenados pelo nome.
+     * Maps de equipes/usuarios para as linhas (antes .find por linha) e
+       filtros/memos encadeados (tarefasProjeto -> tarefasVisiveis).
+
+  4) src/styles.css
+     * Regras .table thead th[aria-sort]: cursor pointer, hover e cor
+       --color-primary no cabeçalho ativo (tokens existentes, vale para Dark
+       e Light).
+
+  VALIDAÇÃO: npm run build - SUCESSO (176 módulos transformados).
+  -> VISUALIZÁVEL: clique no cabeçalho alterna a seta e reordena a tabela;
+     em Usuários é possível filtrar por turma e por perfil e buscar por nome;
+     em Backlog cada coluna ordena pelo valor lógico correspondente.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-09-25] BARRA DE PROGRESSO NA EXCLUSÃO DE TURMA ✔
+--------------------------------------------------------------------------------
+  SOLICITAÇÃO: adicionar uma barra de progresso acionada ao excluir turma para
+  que o usuário não fique aguardando numa tela parada; ao término, exibir a
+  mensagem de turma e/ou alunos excluídos com sucesso.
+
+  DIAGNÓSTICO: a exclusão de turma com "também excluir alunos" executa um loop
+  sequencial (removerTurma -> removerUsuarioCompleto por aluno) com N
+  requisições sem nenhum retorno visual — o modal ficava estático até o fim e,
+  como não havia try/catch, uma falha travava a tela.
+
+  ALTERAÇÕES POR ARQUIVO:
+
+  1) src/services/dataService.js
+     * removerTurma aceita a opção onProgresso e notifica
+       { etapa, atual, total } a cada aluno removido, com as etapas
+       "alunos" -> "turma" -> "concluido", nos modos Supabase e mock.
+
+  2) src/pages/StudentsPage.jsx
+     * Estado progresso + barra Bootstrap dentro do modal de confirmação:
+       .progress com .progress-bar progress-bar-striped progress-bar-animated,
+       percentual numérico, contador "Removendo aluno(s): X de Y..." e aviso
+       para não fechar a página.
+     * Percentuais por etapa: preparando 5% | alunos 10%..90% (proporcional ao
+       total) | turma 95% | concluído 100%.
+     * Rodapé do modal vira botão "Aguarde..." desabilitado durante a
+       exclusão; os botões de lixeira das turmas também ficam desabilitados
+       (evita exclusões concorrentes).
+     * try/catch/finally: ao final reabre a tela, faz refreshAll e, em caso de
+       falha, exibe alert-danger removível (antes: modal travado para sempre).
+     * Mensagem de sucesso com nome da turma e contagem de alunos:
+       - com exclusão: "Turma X excluída com sucesso! N aluno(s) (e todas as
+         suas ligações) também foram removidos."
+       - sem exclusão: "Turma X excluída com sucesso! N aluno(s) permanecem
+         'Sem turma' e podem ser realocados."
+
+  VALIDAÇÃO: npm run build - SUCESSO (176 módulos transformados).
+  -> VISUALIZÁVEL: ao confirmar, o modal exibe barra de progresso animada com
+     percentual e etapa atual; ao chegar em 100% ("Concluído!") a tela segura
+     450 ms antes de fechar o modal e mostrar a mensagem de sucesso no topo;
+     falha exibe alerta de erro em vez de travar.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-09-25] PERMISSÕES PROFESSOR/GESTOR x ALUNOS: TAREFAS DO GRUPO E FLAG DE CONCLUSÃO ✔
+--------------------------------------------------------------------------------
+  SOLICITAÇÃO: aluno não cria projetos; aluno cria/administra tarefas apenas do
+  seu grupo; conclusão de tarefa só é efetiva com flag do professor/gestor;
+  alertar professor/gestor sobre atividades concluídas ainda não validadas.
+
+  DIAGNÓSTICO: o botão "Nova Tarefa" do Backlog era exclusivo do professor (o
+  aluno não tinha como criar tarefas do próprio grupo); a regra de conclusão
+  existia só na UI do Kanban — o RLS (tarefas_insert_professor /
+  tarefas_delete_professor) bloqueava aluno e o "Concluir" do Daily Register
+  gravava status 'concluido' sem aguardando_validacao, contornando a validação;
+  não havia alerta consolidado de pendências e os KPIs (Dashboard, Projetos,
+  Saúde da Equipe) já contavam tarefa pendente como concluída.
+
+  ALTERAÇÕES POR ARQUIVO:
+
+  1) src/utils/permissions.js
+     * Novos helpers: podeCriarProjeto, podeCriarTarefa, podeEditarTarefa,
+       tarefaConcluida (flag efetiva), tarefaAguardandoValidacao e
+       tarefasPendentesValidacao.
+
+  2) src/pages/BacklogPage.jsx
+     * "Nova Tarefa" liberado ao aluno via podeCriarTarefa (somente projetos da
+       própria equipe); editar/excluir por linha via podeEditarTarefa.
+     * Seletor de projetos filtrado por podeVerProjeto + efeito que corrige a
+       seleção fora do alcance do usuário; aluno enxerga as tarefas de TODAS as
+       suas equipes (antes apenas a primeira).
+     * Badge "Em análise" na coluna Status; alerta amarelo com a contagem de
+       pendências e atalho "Validar no Kanban"; guarda em removerTarefa +
+       refreshAll (antes a linha continuava visível após excluir).
+
+  3) src/components/projects/BacklogAssigner.jsx
+     * Equipes do select restritas às do aluno (select travado quando há uma
+       só); equipe padrão sempre dentro do permitido; aluno vem pré-marcado
+       como responsável.
+     * Guardas no salvar (equipe alheia / tarefa alheia) e alerta informativo
+       de que a conclusão é validada pelo professor/gestor.
+
+  4) src/components/kanban/TaskDetailModal.jsx
+     * Botão "Marcar como Concluída" (flag manual do professor/gestor) além de
+       "Aprovar como Concluída" + alerta explicando a regra da flag.
+     * Histórico agora envia tarefa_id e autor como fallback.
+
+  5) src/pages/DailyRegisterPage.jsx
+     * Corrigido bypass: "Concluir" do aluno grava aguardando_validacao=true
+       (solicitação); professor ganhou botão "Validar" que grava a flag;
+       rótulo "Em análise (aguardando validação)".
+
+  6) Alertas de validação pendente para professor/gestor
+     * DashboardPage: KPI "Concluídas" só com flag + alerta listando as
+       pendências (equipe/projeto) com atalho para o Kanban.
+     * KanbanPage: faixa de aviso com a contagem; exclusão de tarefa respeita
+       podeEditarTarefa.
+     * Sidebar: badge com a contagem global de pendências no item Kanban.
+     * ProjectsPage: badge "aguardando validação" por projeto.
+     * ProjectForm: salvar() bloqueia aluno (podeCriarProjeto).
+
+  7) Conclusão efetiva nos indicadores
+     * healthCalculator + TeamHealthCard: % de conclusão só com flag + indicador
+       "em validação"; corrigido early-return que retornava sem alertas/atrasadas
+       (crash no card de equipe sem tarefas).
+     * StudentProfilePage e DailyRegister: rótulo "Em análise" para pendentes.
+
+  8) src/services/dataService.js
+     * registrarAtividade deixou de lançar erro (histórico é auxiliar e podia
+       abortar o refreshAll em falha de RLS).
+
+  9) supabase/migrations/0006_permissao_tarefas_aluno.sql (NOVA - aplicar no SQL Editor)
+     * RLS: aluno insere e exclui tarefas apenas da própria equipe; histórico
+       aceita registro de tarefa da equipe do aluno.
+     * Trigger bloquear_conclusao_sem_validacao: impede aluno de criar/atualizar
+       tarefa como 'concluido' sem aguardando_validacao (a flag só vem de
+       professor/gestor).
+
+  10) src/components/common/Sidebar.jsx e ADMIN/DEPLOY.md
+     * Item "Backlog do Projeto" liberado ao aluno (a página já escopia por
+       equipe) e a migração 0006 listada nas instruções de deploy.
+
+  VALIDAÇÃO: npm run build - SUCESSO (176 módulos transformados).
+  -> VISUALIZÁVEL: aluno acessa o Backlog e cria/edita/exclui tarefas apenas do
+     seu grupo; tarefa concluída por aluno aparece como "Em análise" e só vira
+     "Concluída" (contando no % de conclusão) após professor/gestor aprovar ou
+     marcar; Sidebar, Dashboard, Kanban e Backlog avisam quantas pendências
+     existem.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-09-25] GESTOR: TODAS AS CONTAS DO SISTEMA (INCLUSIVE E-MAIL NÃO CONFIRMADO) ✔
+--------------------------------------------------------------------------------
+  SOLICITAÇÃO: no perfil gestor, a tela "Gerenciar Usuários" deve listar todos
+  os usuários do sistema — inclusive os que nunca confirmaram o e-mail e as
+  contas que existem apenas no login — para poder excluir e limpar a base; os
+  demais perfis (professor/aluno) mantêm a visualização atual.
+
+  DIAGNÓSTICO: a lista vinha apenas de public.usuarios (listarUsuarios), que não
+  informa se o e-mail foi confirmado nem mostra contas criadas em auth.users sem
+  perfil correspondente (cadastro interrompido/trigger falho) — essas contas
+  ficavam invisíveis e impossíveis de limpar pela própria tela.
+
+  ALTERAÇÕES POR ARQUIVO:
+
+  1) supabase/migrations/0007_listar_usuarios_auth.sql (NOVA - aplicar no SQL Editor)
+     * RPC listar_usuarios_auth() (security definer): une auth.users e
+       public.usuarios e devolve JSON { id, email, email_confirmado, criado_em,
+       tem_perfil, nome, papel, turma_id }. Retorna [] para quem não for gestor
+       (revoke de public/anon, grant para authenticated).
+
+  2) src/services/dataService.js
+     * Novo listarUsuariosAuth(): chama a RPC no modo Supabase (no mock devolve
+       as contas do DB) e lança erro apontando a migração 0007 se ela faltar.
+     * listarUsuarios() continua igual — o estado global de usuários usado por
+       Turmas, Equipes, Dashboard, Backlog etc. não foi alterado.
+
+  3) src/pages/UsersPage.jsx (mudanças SOMENTE quando o usuário é GESTOR)
+     * Busca as contas de login em estado local e mescla com os perfis: os
+       perfis ganham email_confirmado/tem_perfil e as contas auth sem perfil
+       entram como linhas próprias na tabela.
+     * Nova coluna "Status da Conta" com badges: Confirmado / E-mail não
+       confirmado / Sem perfil / Sem conta de login.
+     * Novo filtro de Status (todos, não confirmado, confirmado, sem perfil,
+       sem conta de login) e ordenação pela coluna.
+     * Exclusão liberada também para contas sem perfil (excluir_usuario_completo
+       apaga auth.users e o perfil); edição desabilitada nessas linhas, com
+       título explicando que só há exclusão.
+     * Alerta orientando aplicar a migração 0007 enquanto a RPC não existir.
+     * PROFESSOR: nenhuma mudança (sem RPC, sem coluna, sem filtro).
+
+  VALIDAÇÃO: npm run build - SUCESSO (176 módulos transformados).
+  -> VISUALIZÁVEL: como gestor, "Gerenciar Usuários" lista todas as contas com
+     badge de status e permite filtrar e excluir e-mails não confirmados; como
+     professor, a tela continua idêntica à anterior.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-09-25] PROFESSOR SÓ EXCLUI ALUNOS (NÃO EXCLUI GESTORES NEM PROFESSORES) ✔
+--------------------------------------------------------------------------------
+  SOLICITAÇÃO: adicionar a regra de que o professor só pode excluir alunos; não
+  pode excluir gestores nem outros professores. O gestor mantém a exclusão de
+  qualquer usuário.
+
+  DIAGNÓSTICO: a exclusão estava liberada para qualquer professor/gestor — o
+  botão de excluir só bloqueava o próprio usuário logado, a RPC
+  excluir_usuario_completo só verificava is_professor() e a policy de DELETE de
+  public.usuarios (usuarios_delete_professor) aceitava qualquer linha.
+
+  ALTERAÇÕES POR ARQUIVO:
+
+  1) supabase/migrations/0008_professor_so_exclui_alunos.sql (NOVA - aplicar no SQL Editor)
+     * Recria a RPC excluir_usuario_completo com a conferência do papel do alvo:
+       gestor exclui qualquer um; professor só exclui perfis 'aluno' (contas sem
+       perfil público também ficam bloqueadas para professor). O restante do
+       fluxo (tarefas, daily, histórico, equipes, auth.users, perfil) permanece
+       igual.
+     * Nova policy usuarios_delete_aluno_or_gestor: DELETE em public.usuarios
+       exige is_professor() AND (chamador é gestor OR papel da linha = 'aluno').
+
+  2) src/utils/permissions.js
+     * Novo podeExcluirUsuario(usuarioLogado, alvo): gestor exclui qualquer um
+       (menos a si mesmo), professor exclui apenas alunos, aluno não exclui.
+
+  3) src/pages/UsersPage.jsx
+     * Ícone de excluir passa a usar podeExcluirAlvo, com título específico
+       ("Professores só podem excluir alunos" / "Você não pode excluir o próprio
+       usuário") e botão desabilitado; removerUsuario também barra o caminho
+       programático com mensagem de feedback.
+     * Texto do cabeçalho informa a regra ao professor.
+
+  VALIDAÇÃO: npm run build - SUCESSO (176 módulos transformados).
+  -> VISUALIZÁVEL: como professor, o ícone de excluir aparece desabilitado em
+     gestores, professores e no próprio usuário (motivo no tooltip) e segue
+     habilitado em alunos; como gestor, nada muda.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-09-25] MENSAGENS SEM MENÇÕES A BANCO/SUPABASE (LOGIN E AVISOS) ✔
+--------------------------------------------------------------------------------
+  SOLICITAÇÃO: a tela de login e outros avisos traziam referências à base de
+  dados (ex.: "usuário não existe no Auth ... execute o script supabase/
+  migrations/0002_seed.sql no SQL Editor do Supabase"). Trocar tudo por
+  mensagens genéricas, do tipo "Erro ao fazer login".
+
+  ALTERAÇÕES POR ARQUIVO:
+
+  1) src/pages/LoginPage.jsx
+     * "Supabase não configurado. Defina VITE_SUPABASE_URL e
+       VITE_SUPABASE_ANON_KEY..." (login e cadastro) → "Serviço indisponível no
+       momento. Tente novamente mais tarde."
+
+  2) src/services/dataService.js
+     * Senha errada → "E-mail ou senha incorretos." (antes citava Auth/seed).
+     * Demais falhas de login → "Erro ao fazer login. Tente novamente." e
+       perfil → "Erro ao carregar o perfil. Tente novamente." (sem vazar
+       mensagem crua do banco).
+     * Serviço sem conexão → "Serviço indisponível no momento. Tente
+       novamente mais tarde."
+     * Cadastro → "Erro ao cadastrar usuário. Tente novamente."; aviso de
+       confirmação → "Cadastro realizado! Confirme seu e-mail e faça login."
+       (sem citar o provedor).
+     * Contas de login (gestor) → "Não foi possível carregar as contas de
+       login."; o detalhe técnico fica só no console.
+     * Importação de aluno → mantém apenas as validações de negócio ("Informe
+       o nome do aluno.", "E-mail inválido...", "E-mail já cadastrado...") e o
+       restante vira "Erro ao importar aluno. Tente novamente."
+     * Exclusão → mantém as mensagens de regra ("Professores só podem excluir
+       alunos...") e o restante vira "Erro ao excluir usuário. Tente
+       novamente."
+
+  3) src/pages/UsersPage.jsx
+     * Alerta do gestor sem caminho de script: "Não foi possível carregar o
+       status das contas de e-mail. A listagem abaixo mostra apenas os perfis
+       cadastrados."
+
+  4) src/pages/StudentsPage.jsx e src/pages/TeamsPage.jsx
+     * Falha ao excluir turma/equipe não expõe mais a mensagem crua do banco
+       (sempre o texto amigável; detalhe no console).
+
+  5) src/pages/DailyRegisterPage.jsx e src/services/mockData.js
+     * Placeholder e textos de demonstração sem menções a Supabase/RLS.
+
+  Observação: comentários de código e ADMIN/DEPLOY.md mantêm as referências às
+  migrações — são documentação técnica e não aparecem na interface.
+
+  VALIDAÇÃO: npm run build - SUCESSO (176 módulos transformados).
+  -> VISUALIZÁVEL: ao errar a senha aparece "E-mail ou senha incorretos.";
+     sem conexão aparece "Serviço indisponível no momento..."; nenhum aviso da
+     interface cita Supabase, Auth, SQL Editor, seed ou arquivo de migração.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-09-25] BARRA DE PROGRESSO NA EXCLUSÃO DE EQUIPES E PROJETOS ✔
+--------------------------------------------------------------------------------
+  SOLICITAÇÃO: aplicar a mesma diretriz da exclusão de turma (barra de
+  progresso no modal + mensagem de sucesso ao término) também à exclusão de
+  EQUIPES e de PROJETOS.
+
+  DIAGNÓSTICO: nas duas telas o modal de confirmação ficava estático durante a
+  requisição (equipes: aviso só em "Excluindo equipe..."; projetos: nenhum
+  retorno visual e sem try/catch — uma falha travava o fluxo sem mensagem).
+
+  ALTERAÇÕES POR ARQUIVO:
+
+  1) src/services/dataService.js
+     * removerEquipe agora aceita onProgresso e emite { etapa, atual, total }:
+       "preparando" -> "vinculos" -> "concluido". No modo Supabase a cascata
+       (membros, check-ins, vínculos) roda no banco numa única requisição; no
+       modo mock as 3 etapas são notificadas uma a uma.
+     * removerProjeto idem, com etapas "preparando" -> "tarefas" ->
+       "concluido" (tarefas + checklists + vínculos saem em cascata).
+
+  2) src/pages/TeamsPage.jsx
+     * Estado progresso + barra Bootstrap dentro do modal de confirmação
+       (.progress-bar progress-bar-striped progress-bar-animated, percentual
+       numérico, texto da etapa e aviso para não fechar a página).
+     * Percentuais: preparando 10% | vínculos 30%..90% (proporcional quando o
+       serviço informa atual/total) | concluído 100%.
+     * Rodapé do modal vira botão "Aguarde..." desabilitado; lixeiras das
+       equipes também ficam desabilitadas (evita exclusões concorrentes).
+     * Mantida a remoção otimista da equipe (e de tarefas/projetos/check-ins
+       dependentes) com a barra acompanhando; try/catch/finally fecha o modal,
+       exibe alert-success com nome da equipe e contagem de membros, faz
+       refreshAll e, em falha, mostra alert-danger removível.
+     * Modal agora recebe o objeto da equipe: nome + lista (até 5) dos membros
+       no texto de confirmação.
+
+  3) src/pages/ProjectsPage.jsx
+     * Mesmo padrão: estados progresso/feedback/erroRemocao, barra no modal
+       (preparando 10% | tarefas 30%..90% | concluído 100%), rodapé "Aguarde...",
+       lixeira desabilitada durante a exclusão.
+     * try/catch/finally com refreshAll; sucesso: "Projeto X excluído com
+       sucesso! N tarefa(s) e seus checklists também foram removidos."; falha:
+       alert-danger removível (antes: sem tratamento).
+     * Modal mostra o nome do projeto e a contagem de tarefas afetadas.
+
+  VALIDAÇÃO: npm run build - SUCESSO (176 módulos transformados).
+  -> VISUALIZÁVEL: ao confirmar a exclusão de equipe ou projeto, o modal exibe
+     barra de progresso animada com percentual e etapa atual; ao chegar em
+     100% ("Concluído!") a tela segura 450 ms antes de fechar o modal e mostrar
+     a mensagem de sucesso no topo; falha exibe alerta de erro em vez de travar.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-09-25] EXCLUSÃO EM CASCATA COMPLETA DO USUÁRIO + LIMPEZA DE auth.identities ÓRFÃS ✔
+--------------------------------------------------------------------------------
+  SOLICITAÇÃO: quando um professor/gestor exclui um aluno (ou o gestor exclui um
+  professor), TODAS as tabelas relacionadas a public.usuarios devem ser limpas —
+  incluindo auth.identities — para não manter histórico antigo de usuários;
+  além disso, criar um script que apague de auth.identities os usuários que já
+  não existem mais em public.usuarios (sobraram das exclusões antigas).
+
+  DIAGNÓSTICO: a RPC excluir_usuario_completo (0004/0008) apagava tarefas,
+  daily registers, histórico, equipes, auth.users e o perfil, mas:
+    * auth.identities só saía na cascata de auth.users — quando a exclusão
+      passava pelo caminho de fallback (sem RPC), a conta de login inteira
+      ficava órfã e as identidades permaneciam na base;
+    * public.historico_acoes não tem FK: guardava o uuid do usuário (também nos
+      jsonb dados_anteriores/dados_novos) — inclusive a auditoria gerada pela
+      própria exclusão;
+    * auth.audit_log_entries mantém eventos de autenticação com o id/usuário.
+
+  ALTERAÇÕES POR ARQUIVO:
+
+  1) supabase/migrations/0009_exclusao_cascata_completa_usuario.sql (NOVA - aplicar no SQL Editor)
+     * excluir_usuario_completo (versão definitiva): depois das regras da
+       migração 0008, apaga nesta ordem — tarefas, daily_registers,
+       historico_atividades, equipe_membros, **auth.identities** (explícito,
+       antes do auth.users), **auth.users** (sessions, refresh_tokens, mfa na
+       cascata), perfil em public.usuarios, **historico_acoes** (por
+       usuario_id/registro_id e pelos jsonb que citam o id — feito por último
+       também limpa a auditoria gerada nesta exclusão) e, em melhor esforço,
+       auth.audit_log_entries.
+     * Nova RPC limpar_auth_orfao(p_usuario_id uuid default null): apaga
+       identidades + conta de login + auditoria de quem não está em
+       public.usuarios. Sem parâmetro varre todas as contas órfãs (no app: só
+       gestor); com parâmetro limpa um id (professor/gestor); direto no SQL
+       Editor (sem auth.uid()) roda livremente. Retorna { ids, identidades,
+       contas, auditoria }.
+     * LIMPEZA ÚNICA dos órfãos já existentes: monta a tabela temporária
+       tmp_usuarios_orfaos (auth.users ∪ auth.identities sem perfil), limpa a
+       auditoria do app, as identidades e as contas — nessa ordem, para não
+       deixar identidades sem referência — e imprime a contagem removida.
+       Segurança: a varredura não roda se public.usuarios estiver vazia
+       (evitaria apagar todas as contas de login por engano).
+
+  2) src/services/dataService.js
+     * O fallback de exclusão (quando o RPC principal não existe) passou a
+       chamar limpar_auth_orfao(id) depois de apagar o perfil, para não deixar
+       auth.users/auth.identities órfãos; os deletes auxiliares agora logam o
+       erro de cada tabela no console.
+
+  3) ADMIN/DEPLOY.md — item 9 na lista de migrações a aplicar.
+
+  VALIDAÇÃO: npm run build - SUCESSO (176 módulos transformados).
+  -> COMPORTAMENTO: excluir um usuário (aluno pelo professor; qualquer um pelo
+     gestor) remove também auth.identities, auth.users e a trilha de auditoria;
+     ao aplicar a migração 0009, as identidades/contas que sobraram das
+     exclusões antigas são apagadas de uma vez (relatório com a contagem aparece
+     no SQL Editor) e a RPC limpar_auth_orfao permite repetir a limpeza depois.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-09-25] CORREÇÃO NA MIGRAÇÃO 0009 (LIMPEZA SEM TABELA TEMPORÁRIA) ✔
+--------------------------------------------------------------------------------
+  PROBLEMA: ao rodar a migração 0009 no SQL Editor do Supabase ocorreu
+  "ERROR: 42P01: relation "tmp_usuarios_orfaos" does not exist" — a tabela
+  temporária criada em um statement não ficou visível nos statements
+  seguintes; como a execução falhou, o script inteiro foi desfeito (nenhuma
+  função/limpeza aplicada).
+
+  CORREÇÃO (no mesmo arquivo supabase/migrations/0009_exclusao_cascata_completa_usuario.sql):
+  * Seção 3 (limpeza dos órfãos) reescrita dentro de UM único bloco DO: os ids
+    órfãos são coletados num array (select ... into) e as limpezas usam
+    unnest()/any() — não há mais nenhuma tabela temporária nem dependência
+    entre statements.
+  * Os deletes de auth.identities, auth.users e auth.audit_log_entries ficaram
+    envolvidos em exception: uma permissão ausente emite NOTICE em vez de
+    derrubar a migração inteira (o restante é aplicado).
+  * Relatório da limpeza passa a sair como NOTICE ("LIMPEZA DE CONTAS ORFAS ->
+    ids: ... | identidades: ... | contas de login: ... | auditoria: ...") e o
+    script termina com um select de verificação
+    (contas_orfas_restantes / identidades_orfas_restantes) que deve retornar 0.
+
+  VALIDAÇÃO: alteração apenas de SQL — a migração precisa ser aplicada de novo
+  no SQL Editor (a execução anterior não deixou nada gravado); o build do app
+  não é afetado (npm run build segue SUCESSO, 176 módulos).
+--------------------------------------------------------------------------------

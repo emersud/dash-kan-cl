@@ -14,15 +14,28 @@ export function TaskDetailModal({ show, tarefa, onClose, onDelete, permitirExclu
   const ehProfessor = usuarioLogado?.papel === 'professor' || usuarioLogado?.papel === 'gestor'
   const aluno = usuarios.find(u => u.id === tarefa.aluno_id)
 
+  // Histórico ligado à tarefa (permite RLS por equipe) e com autor como fallback.
+  const logAtividade = (tipo_acao, descricao) => ds.registrarAtividade({
+    usuario_id: tarefa.aluno_id || usuarioLogado?.id,
+    tarefa_id: tarefa.id,
+    tipo_acao,
+    descricao
+  })
+
   const aprovarConcluida = async () => {
     // Somente professor/gestor insere a flag de concluída (validação final)
     if (!ehProfessor) return
     await ds.atualizarTarefa(tarefa.id, { status: 'concluido', aguardando_validacao: false })
-    await ds.registrarAtividade({
-      usuario_id: tarefa.aluno_id,
-      tipo_acao: 'aprovou_conclusao',
-      descricao: `${usuarioLogado?.papel === 'gestor' ? 'Gestor' : 'Professor'} aprovou "${tarefa.titulo}" como concluída`
-    })
+    await logAtividade('aprovou_conclusao', `${usuarioLogado?.papel === 'gestor' ? 'Gestor' : 'Professor'} aprovou "${tarefa.titulo}" como concluída`)
+    await refreshAll()
+    onClose()
+  }
+
+  // Flag manual do professor/gestor: marca a tarefa como concluída sem passar pela aprovação.
+  const marcarConcluida = async () => {
+    if (!ehProfessor) return
+    await ds.atualizarTarefa(tarefa.id, { status: 'concluido', aguardando_validacao: false })
+    await logAtividade('aprovou_conclusao', `${usuarioLogado?.papel === 'gestor' ? 'Gestor' : 'Professor'} definiu "${tarefa.titulo}" como concluída (flag)`)
     await refreshAll()
     onClose()
   }
@@ -32,7 +45,7 @@ export function TaskDetailModal({ show, tarefa, onClose, onDelete, permitirExclu
     const novoConcluido = novaLista.find(c => c.id === item.id).concluido
     await ds.atualizarTarefa(tarefa.id, { checklists: novaLista })
     if (novoConcluido) {
-      await ds.registrarAtividade({ usuario_id: tarefa.aluno_id, tipo_acao: 'concluiu_checklist', descricao: `Concluiu o item "${item.item}"` })
+      await logAtividade('concluiu_checklist', `Concluiu o item "${item.item}"`)
     }
     await refreshAll()
   }
@@ -68,6 +81,13 @@ export function TaskDetailModal({ show, tarefa, onClose, onDelete, permitirExclu
                   <><i className="bi bi-hourglass-split me-1"></i>
                   Esta tarefa está <strong>em análise</strong>. Você solicitou a conclusão — aguarde a aprovação do professor/gestor.</>
                 )}
+              </div>
+            )}
+
+            {ehProfessor && permitirAprovar && tarefa.status !== 'concluido' && !tarefa.aguardando_validacao && (
+              <div className="alert alert-info py-2 small">
+                <i className="bi bi-flag me-1"></i>
+                A conclusão só é efetiva com a <strong>flag do professor/gestor</strong> — use "Marcar como Concluída".
               </div>
             )}
 
@@ -108,12 +128,24 @@ export function TaskDetailModal({ show, tarefa, onClose, onDelete, permitirExclu
               ))}
             </div>
           </div>
-          <div className="modal-footer d-flex justify-content-between">
-            {ehProfessor && permitirAprovar && tarefa.aguardando_validacao
-              ? <button className="btn btn-success btn-sm" onClick={aprovarConcluida}><i className="bi bi-check2-circle me-1"></i>Aprovar como Concluída</button>
-              : permitirExcluir && ehProfessor
-                ? <button className="btn btn-danger btn-sm" onClick={() => onDelete(tarefa.id)}><i className="bi bi-trash me-1"></i>Excluir</button>
-                : <span></span>}
+          <div className="modal-footer d-flex justify-content-between flex-wrap gap-2">
+            <div className="d-flex gap-2 flex-wrap">
+              {ehProfessor && permitirAprovar && tarefa.aguardando_validacao && (
+                <button className="btn btn-success btn-sm" onClick={aprovarConcluida}>
+                  <i className="bi bi-check2-circle me-1"></i>Aprovar como Concluída
+                </button>
+              )}
+              {ehProfessor && permitirAprovar && tarefa.status !== 'concluido' && (
+                <button className="btn btn-primary-theme btn-sm" onClick={marcarConcluida} title="Insere a flag de conclusão (validação final)">
+                  <i className="bi bi-flag-fill me-1"></i>Marcar como Concluída
+                </button>
+              )}
+              {permitirExcluir && ehProfessor && (
+                <button className="btn btn-danger btn-sm" onClick={() => onDelete(tarefa.id)}>
+                  <i className="bi bi-trash me-1"></i>Excluir
+                </button>
+              )}
+            </div>
             <button className="btn btn-secondary btn-sm" onClick={onClose}>Fechar</button>
           </div>
         </div>

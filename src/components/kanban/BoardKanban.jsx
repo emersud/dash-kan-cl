@@ -47,7 +47,8 @@ export function BoardKanban({ projeto, onCardClick, equipeFiltro = null, idsEqui
       setTarefas(tarefas.map(t => t.id === draggableId ? atualizada : t))
       await ds.atualizarTarefa(draggableId, { status: 'concluido', aguardando_validacao: true })
       await ds.registrarAtividade({
-        usuario_id: tarefa.aluno_id,
+        usuario_id: tarefa.aluno_id || usuarioLogado?.id,
+        tarefa_id: tarefa.id,
         tipo_acao: 'movimentou_card',
         descricao: `Aluno solicitou validação de "${tarefa.titulo}" (em análise)`
       })
@@ -61,7 +62,8 @@ export function BoardKanban({ projeto, onCardClick, equipeFiltro = null, idsEqui
       setTarefas(tarefas.map(t => t.id === draggableId ? atualizada : t))
       await ds.atualizarTarefa(draggableId, { status: 'concluido', aguardando_validacao: false })
       await ds.registrarAtividade({
-        usuario_id: tarefa.aluno_id,
+        usuario_id: tarefa.aluno_id || usuarioLogado?.id,
+        tarefa_id: tarefa.id,
         tipo_acao: 'movimentou_card',
         descricao: `${usuarioLogado?.papel === 'gestor' ? 'Gestor' : 'Professor'} validou a tarefa "${tarefa.titulo}" como concluída`
       })
@@ -86,7 +88,8 @@ export function BoardKanban({ projeto, onCardClick, equipeFiltro = null, idsEqui
       setTarefas(tarefas.map(t => t.id === draggableId ? updated : t))
       await ds.atualizarTarefa(draggableId, { status: novaStatus, aguardando_validacao: false })
       await ds.registrarAtividade({
-        usuario_id: updated.aluno_id,
+        usuario_id: updated.aluno_id || usuarioLogado?.id,
+        tarefa_id: updated.id,
         tipo_acao: 'movimentou_card',
         descricao: `Moveu o card "${updated.titulo}" para ${novaStatus}`
       })

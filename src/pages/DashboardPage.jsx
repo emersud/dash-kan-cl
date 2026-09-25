@@ -2,12 +2,14 @@ import React, { useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import { TeamHealthCard } from '../components/dashboard/TeamHealthCard.jsx'
 import { StudentStatusDot } from '../components/dashboard/StudentStatusDot.jsx'
+import { isProfessor, tarefasPendentesValidacao } from '../utils/permissions.js'
 
 export default function DashboardPage() {
-  const { projetos, equipes, usuarios, tarefas } = useApp()
+  const { projetos, equipes, usuarios, tarefas, usuarioLogado, setActivePage } = useApp()
   const [projetoId, setProjetoId] = useState(projetos[0]?.id || '')
   const [equipeId, setEquipeId] = useState('all')
 
+  const ehProfessor = isProfessor(usuarioLogado?.papel)
   const projeto = projetos.find(p => p.id === projetoId)
   const equipesProjeto = projeto ? (projeto.equipes_ids || []).map(id => equipes.find(e => e.id === id)).filter(Boolean) : []
   const equipeAtiva = equipeId === 'all' ? null : equipes.find(e => e.id === equipeId)
@@ -16,8 +18,13 @@ export default function DashboardPage() {
     t.projeto_id === projetoId &&
     (equipeId === 'all' || t.equipe_id === equipeId)
   )
-  const tarefasConcluidas = tarefasFiltradas.filter(t => t.status === 'concluido').length
+  // Conclusão EFETIVA: só conta com a flag do professor/gestor
+  const tarefasConcluidas = tarefasFiltradas.filter(t => t.status === 'concluido' && !t.aguardando_validacao).length
   const percentual = tarefasFiltradas.length ? Math.round((tarefasConcluidas / tarefasFiltradas.length) * 100) : 0
+
+  // Alerta global (todas as equipes/projetos): tarefas concluídas sem a flag
+  const pendentesValidacao = ehProfessor ? tarefasPendentesValidacao(tarefas) : []
+  const pendentesNoFiltro = pendentesValidacao.filter(t => t.projeto_id === projetoId)
 
   return (
     <div>
@@ -37,6 +44,40 @@ export default function DashboardPage() {
           </select>
         </div>
       </div>
+
+      {pendentesValidacao.length > 0 && (
+        <div className="alert alert-warning mb-4">
+          <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div>
+              <i className="bi bi-hourglass-split me-2"></i>
+              <strong>{pendentesValidacao.length}</strong> tarefa(s) concluída(s) <strong>aguardando sua validação</strong>
+              {pendentesNoFiltro.length > 0 && pendentesNoFiltro.length !== pendentesValidacao.length && (
+                <span className="text-muted-custom ms-1">({pendentesNoFiltro.length} neste projeto)</span>
+              )}
+              <div className="small mt-1">
+                A conclusão só é efetiva quando o professor/gestor insere a flag de concluído.
+              </div>
+            </div>
+            <button className="btn btn-sm btn-outline-warning" onClick={() => setActivePage('kanban')}>
+              <i className="bi bi-kanban me-1"></i>Ir para o Kanban
+            </button>
+          </div>
+          <div className="mt-2">
+            {pendentesValidacao.slice(0, 6).map(t => (
+              <div key={t.id} className="d-flex align-items-center gap-2 small py-1 border-top" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
+                <i className="bi bi-check2-square"></i>
+                <span className="fw-semibold">{t.titulo}</span>
+                <span className="text-muted-custom ms-auto">
+                  {equipes.find(e => e.id === t.equipe_id)?.nome || '—'} · {projetos.find(p => p.id === t.projeto_id)?.nome || '—'}
+                </span>
+              </div>
+            ))}
+            {pendentesValidacao.length > 6 && (
+              <div className="small text-muted-custom mt-1">+ {pendentesValidacao.length - 6} outra(s) tarefa(s)…</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {!projeto ? (
         <div className="card">

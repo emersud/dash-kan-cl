@@ -1,10 +1,12 @@
 export function calcularSaudeEquipe(tarefasEquipe, integrantesEquipe) {
   const total = tarefasEquipe.length
   if (total === 0) {
-    return { status: 'AMARELO', cor: 'warning', percentual: 0, mensagem: 'Nenhuma tarefa cadastrada' }
+    return { status: 'AMARELO', cor: 'warning', percentual: 0, concluidas: 0, emValidacao: 0, atrasadas: 0, alertas: [], mensagem: 'Nenhuma tarefa cadastrada' }
   }
 
-  const concluidas = tarefasEquipe.filter(t => t.status === 'concluido').length
+  // Conclusão efetiva: só vale com a flag do professor/gestor
+  const concluidas = tarefasEquipe.filter(t => t.status === 'concluido' && !t.aguardando_validacao).length
+  const emValidacao = tarefasEquipe.filter(t => t.status === 'concluido' && t.aguardando_validacao).length
   const percentual = Math.round((concluidas / total) * 100)
 
   const agora = new Date()
@@ -31,5 +33,5 @@ export function calcularSaudeEquipe(tarefasEquipe, integrantesEquipe) {
     cor = 'warning'
   }
 
-  return { status, cor, percentual, total, concluidas, atrasadas: atrasadas.length, alertas }
+  return { status, cor, percentual, total, concluidas, emValidacao, atrasadas: atrasadas.length, alertas }
 }

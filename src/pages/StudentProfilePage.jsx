@@ -255,10 +255,17 @@ export default function StudentProfilePage() {
                 <div key={t.id} className="p-2 rounded mb-2" style={{ backgroundColor: 'var(--bg-card-hover)', border: '1px solid var(--border-color)' }}>
                   <div className="d-flex justify-content-between align-items-start gap-2">
                     <div>
-                      <div className={`small fw-bold ${t.status === 'concluido' ? 'text-decoration-line-through text-muted-custom' : ''}`}>{t.titulo}</div>
+                      <div className={`small fw-bold ${(t.status === 'concluido' && !t.aguardando_validacao) ? 'text-decoration-line-through text-muted-custom' : ''}`}>{t.titulo}</div>
                       <small className="text-muted-custom">{getProjeto(t.projeto_id)?.nome || 'Projeto'}</small>
                     </div>
-                    <Badge tipo={t.status}>{STATUS_LABEL[t.status] || t.status}</Badge>
+                    <div className="d-flex flex-column align-items-end gap-1">
+                      <Badge tipo={t.status}>{STATUS_LABEL[t.status] || t.status}</Badge>
+                      {t.aguardando_validacao && (
+                        <span className="badge badge-pending" style={{ fontSize: '0.65rem' }} title="Concluída por você, aguardando validação do professor/gestor">
+                          <i className="bi bi-hourglass-split me-1"></i>Em análise
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {t.is_impedida && <div className="small text-warning mt-1"><i className="bi bi-exclamation-octagon-fill me-1"></i>Impedida</div>}
                 </div>

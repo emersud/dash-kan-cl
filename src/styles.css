@@ -234,6 +234,23 @@ a {
   border-color: var(--border-subtle);
 }
 
+/* Cabeçalhos ordenáveis por clique (seta asc/desc) — TableSort.jsx */
+.table thead th[aria-sort] {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.table thead th[aria-sort]:hover {
+  color: var(--color-primary);
+  background-color: var(--bg-card-hover);
+}
+
+.table thead th[aria-sort="ascending"],
+.table thead th[aria-sort="descending"] {
+  color: var(--color-primary);
+}
+
 .table-container {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);

@@ -1,20 +1,37 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useApp } from '../../context/AppContext.jsx'
 import * as ds from '../../services/dataService.js'
+import { isProfessor, equipesDoAluno, podeEditarTarefa } from '../../utils/permissions.js'
 
 const PRIORIDADES = ['baixa', 'media', 'alta', 'urgente']
 const ESTIMATIVAS = ['P', 'M', 'G', '1', '2', '3', '5', '8']
 
 export function BacklogAssigner({ show, onClose, projeto, tarefaEdit }) {
-  const { equipes, usuarios, refreshAll } = useApp()
+  const { equipes, usuarios, refreshAll, usuarioLogado } = useApp()
+  const ehProfessor = isProfessor(usuarioLogado?.papel)
+  // Aluno: só pode operar nas equipes em que participa (regra do grupo)
+  const idsMinhasEquipes = useMemo(
+    () => new Set(equipesDoAluno(equipes, usuarioLogado?.id).map(e => e.id)),
+    [equipes, usuarioLogado?.id]
+  )
+  // Equipe padrão: a da tarefa ou a 1ª equipe DO PROJETO que o usuário pode usar.
+  const equipePadrao = (t) => {
+    if (t?.equipe_id) return t.equipe_id
+    const permitidas = (projeto?.equipes_ids || []).filter(id => ehProfessor || idsMinhasEquipes.has(id))
+    return permitidas[0] || ''
+  }
+  const equipeInicial = equipePadrao(tarefaEdit)
+  // Aluno já vem como responsável da própria tarefa; professor escolhe.
+  const alunoPadrao = (t, eqId) => t?.aluno_id || (ehProfessor ? '' : (idsMinhasEquipes.has(eqId) ? usuarioLogado?.id : ''))
+  const alunoInicial = alunoPadrao(tarefaEdit, equipeInicial)
   const [titulo, setTitulo] = useState(tarefaEdit?.titulo || '')
   const [descricao, setDescricao] = useState(tarefaEdit?.descricao || '')
   const [prioridade, setPrioridade] = useState(tarefaEdit?.prioridade || 'media')
   const [estimativa, setEstimativa] = useState(tarefaEdit?.estimativa || '')
   const [checklists, setChecklists] = useState(tarefaEdit?.checklists || [])
   const [novoCheck, setNovoCheck] = useState('')
-  const [equipeId, setEquipeId] = useState(tarefaEdit?.equipe_id || (projeto?.equipes_ids?.[0] || ''))
-  const [alunoId, setAlunoId] = useState(tarefaEdit?.aluno_id || '')
+  const [equipeId, setEquipeId] = useState(equipeInicial)
+  const [alunoId, setAlunoId] = useState(alunoInicial)
   const [prazo, setPrazo] = useState(tarefaEdit?.prazo_limite ? tarefaEdit.prazo_limite.slice(0, 10) : '')
   const [erro, setErro] = useState('')
 
@@ -26,13 +43,17 @@ export function BacklogAssigner({ show, onClose, projeto, tarefaEdit }) {
     setEstimativa(tarefaEdit?.estimativa || '')
     setChecklists(tarefaEdit?.checklists ? tarefaEdit.checklists.map(c => ({ ...c })) : [])
     setNovoCheck('')
-    setEquipeId(tarefaEdit?.equipe_id || (projeto?.equipes_ids?.[0] || ''))
-    setAlunoId(tarefaEdit?.aluno_id || '')
+    setEquipeId(equipePadrao(tarefaEdit))
+    setAlunoId(alunoPadrao(tarefaEdit, equipePadrao(tarefaEdit)))
     setPrazo(tarefaEdit?.prazo_limite ? tarefaEdit.prazo_limite.slice(0, 10) : '')
     setErro('')
   }, [show, tarefaEdit, projeto])
 
-  const equipesProjeto = equipes.filter(e => projeto?.equipes_ids?.includes(e.id))
+  // Equipes do projeto; aluno vê apenas as suas e é travado nelas.
+  const equipesProjeto = useMemo(() => {
+    const doProjeto = equipes.filter(e => projeto?.equipes_ids?.includes(e.id))
+    return ehProfessor ? doProjeto : doProjeto.filter(e => idsMinhasEquipes.has(e.id))
+  }, [equipes, projeto, ehProfessor, idsMinhasEquipes])
   const membrosEquipe = equipeId
     ? equipes.find(e => e.id === equipeId)?.membros?.map(m => usuarios.find(u => u.id === m.aluno_id)).filter(Boolean)
     : []
@@ -41,6 +62,15 @@ export function BacklogAssigner({ show, onClose, projeto, tarefaEdit }) {
     setErro('')
     if (!titulo.trim()) { setErro('Informe o título da tarefa.'); return }
     if (!equipeId) { setErro('Selecione a equipe.'); return }
+    // Guarda de segurança: aluno só cria/edita tarefas da própria equipe.
+    if (!ehProfessor && !idsMinhasEquipes.has(equipeId)) {
+      setErro('Aluno só pode gerenciar tarefas das equipes em que participa.')
+      return
+    }
+    if (tarefaEdit?.id && !podeEditarTarefa(usuarioLogado, tarefaEdit, equipes)) {
+      setErro('Você não tem permissão para editar esta tarefa.')
+      return
+    }
 
     const dados = {
       projeto_id: projeto.id,
@@ -52,6 +82,7 @@ export function BacklogAssigner({ show, onClose, projeto, tarefaEdit }) {
       estimativa: estimativa,
       checklists: checklists.filter(c => c.item.trim()),
       status: tarefaEdit?.status || 'a_fazer',
+      aguardando_validacao: tarefaEdit?.aguardando_validacao || false,
       prazo_limite: prazo ? new Date(prazo + 'T23:59:59Z').toISOString() : null
     }
 
@@ -82,6 +113,12 @@ export function BacklogAssigner({ show, onClose, projeto, tarefaEdit }) {
           </div>
           <div className="modal-body">
             {erro && <div className="alert alert-danger py-2">{erro}</div>}
+            {!ehProfessor && (
+              <div className="alert alert-info py-2 small">
+                <i className="bi bi-info-circle me-1"></i>
+                A conclusão de tarefas é validada pelo professor/gestor: ao concluir no Kanban sua tarefa fica "em análise" até o professor inserir a flag.
+              </div>
+            )}
 
             <div className="mb-3">
               <label className="form-label text-muted-custom">Título <span className="text-muted-custom small">(comece com verbo de ação)</span></label>
@@ -130,11 +167,24 @@ export function BacklogAssigner({ show, onClose, projeto, tarefaEdit }) {
             </div>
 
             <div className="mb-3">
-              <label className="form-label text-muted-custom">Equipe responsável</label>
-              <select className="form-select" value={equipeId} onChange={(e) => { setEquipeId(e.target.value); setAlunoId('') }}>
+              <label className="form-label text-muted-custom">
+                Equipe responsável
+                {!ehProfessor && <span className="badge badge-info ms-2">Somente suas equipes</span>}
+              </label>
+              <select
+                className="form-select"
+                value={equipeId}
+                onChange={(e) => { setEquipeId(e.target.value); setAlunoId(alunoPadrao(null, e.target.value)) }}
+                disabled={!ehProfessor && equipesProjeto.length <= 1}
+              >
                 <option value="">— selecione —</option>
                 {equipesProjeto.map(eq => <option key={eq.id} value={eq.id}>{eq.nome}</option>)}
               </select>
+              {!ehProfessor && (
+                <small className="text-muted-custom">
+                  <i className="bi bi-people me-1"></i>Aluno só pode criar/editar tarefas das equipes em que participa.
+                </small>
+              )}
             </div>
 
             <div className="mb-3">

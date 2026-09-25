@@ -70,7 +70,7 @@ export const MOCK_DATA = {
       equipe_id: 'eq1',
       aluno_id: 'u2',
       titulo: 'Modelagem do Banco de Dados',
-      descricao: 'Criar script SQL e diagramas ER no Supabase',
+      descricao: 'Criar o diagrama de dados e o script de criação das tabelas',
       prioridade: 'alta',
       estimativa: '8',
       status: 'concluido',
@@ -239,7 +239,7 @@ export const MOCK_DATA = {
     { id: 'h10', usuario_id: 'u2', tarefa_id: 'k5', tipo_acao: 'daily_checkin', descricao: 'Check-in diário', data_hora: '2026-09-15T09:10:00Z' }
   ],
   daily_registers: [
-    { id: 'd1', equipe_id: 'eq1', aluno_id: 'u2', data_checkin: '2026-09-13', o_que_fez: 'Finalizei a modelagem do banco de dados.', licao_aprendida: 'Aprendi a tratar RLS no Supabase.', impedimento: '' },
+    { id: 'd1', equipe_id: 'eq1', aluno_id: 'u2', data_checkin: '2026-09-13', o_que_fez: 'Finalizei a modelagem do banco de dados.', licao_aprendida: 'Aprendi a revisar as regras de permissão do projeto.', impedimento: '' },
     { id: 'd2', equipe_id: 'eq1', aluno_id: 'u2', data_checkin: '2026-09-14', o_que_fez: 'Iniciei o protótipo das telas do app.', licao_aprendida: 'Prototipagem acelera a validação.', impedimento: '' },
     { id: 'd3', equipe_id: 'eq1', aluno_id: 'u2', data_checkin: '2026-09-15', o_que_fez: 'Configurei as rotas do React.', licao_aprendida: 'Mocks ajudam no desenvolvimento independente do back.', impedimento: 'Aguardando design system.' },
     { id: 'd4', equipe_id: 'eq1', aluno_id: 'u4', data_checkin: '2026-09-15', o_que_fez: 'Desenvolvi a tela de login.', licao_aprendida: 'Importante manter checklists pequenas.', impedimento: '' },

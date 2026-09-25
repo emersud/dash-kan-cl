@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext.jsx'
 import { BoardKanban } from '../components/kanban/BoardKanban.jsx'
 import { TaskDetailModal } from '../components/kanban/TaskDetailModal.jsx'
 import * as ds from '../services/dataService.js'
-import { isProfessor, equipesDoAluno } from '../utils/permissions.js'
+import { isProfessor, equipesDoAluno, podeEditarTarefa, tarefasPendentesValidacao } from '../utils/permissions.js'
 
 export default function KanbanPage() {
   const { projetos, tarefas, equipes, usuarioLogado, refreshAll } = useApp()
@@ -55,6 +55,9 @@ export default function KanbanPage() {
   const idsEquipesAluno = ehProfessor ? null : idsMinhasEquipes
 
   const excluirTarefa = async (id) => {
+    // Aluno só exclui tarefas das equipes em que participa
+    const tarefa = tarefas.find(t => t.id === id)
+    if (!tarefa || !podeEditarTarefa(usuarioLogado, tarefa, equipes)) return
     await ds.removerTarefa(id)
     setTarefaDetalhe(null)
     await refreshAll()
@@ -67,6 +70,9 @@ export default function KanbanPage() {
       : idsMinhasEquipes.has(t.equipe_id)
     )
   )
+
+  // Alerta para professor/gestor: concluídas pelo aluno, ainda sem flag
+  const pendentesValidacao = ehProfessor ? tarefasPendentesValidacao(tarefasVisiveis) : []
 
   return (
     <div>
@@ -97,6 +103,15 @@ export default function KanbanPage() {
         </div>
       </div>
 
+      {pendentesValidacao.length > 0 && (
+        <div className="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+          <span>
+            <i className="bi bi-hourglass-split me-2"></i>
+            <strong>{pendentesValidacao.length}</strong> tarefa(s) concluída(s) aguardando <strong>validação</strong> — clique no card e aprove para inserir a flag.
+          </span>
+        </div>
+      )}
+
       {!projeto ? (
         <div className="card">
           <div className="card-body text-center p-5">
@@ -121,7 +136,14 @@ export default function KanbanPage() {
             equipeFiltro={equipeFiltro}
             idsEquipesAluno={idsEquipesAluno}
           />
-          <TaskDetailModal show={!!tarefaDetalhe} tarefa={tarefaDetalhe} onClose={() => setTarefaDetalhe(null)} onDelete={excluirTarefa} permitirExcluir={ehProfessor} permitirAprovar={ehProfessor} />
+          <TaskDetailModal
+            show={!!tarefaDetalhe}
+            tarefa={tarefaDetalhe}
+            onClose={() => setTarefaDetalhe(null)}
+            onDelete={excluirTarefa}
+            permitirExcluir={tarefaDetalhe ? podeEditarTarefa(usuarioLogado, tarefaDetalhe, equipes) : false}
+            permitirAprovar={ehProfessor}
+          />
         </>
       )}
     </div>

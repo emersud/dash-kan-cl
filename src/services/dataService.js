@@ -52,24 +52,24 @@ export async function autenticar(email, senha) {
 // FASE 3 - Modo Conectado: autentica via Supabase Auth e carrega o perfil
 // da tabela 'usuarios' (RLS 'authenticated').
 export async function autenticarSupabase(email, senha) {
-  if (!supabaseClient) throw new Error('Supabase não configurado')
+  if (!supabaseClient) throw new Error('Serviço indisponível no momento. Tente novamente mais tarde.')
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: senha })
   if (error || !data?.user) {
     const code = error?.code || ''
     if (code === 'invalid_credentials') {
-      throw new Error('Credenciais inválidas: usuário não existe no Auth ou senha incorreta. Se estiver usando as credenciais do seed, verifique se o script supabase/migrations/0002_seed.sql foi executado no SQL Editor do Supabase (Authentication > Users).')
+      throw new Error('E-mail ou senha incorretos.')
     }
     if (code === 'email_not_confirmed') {
       throw new Error('E-mail ainda não confirmado. Confirme o e-mail antes de entrar.')
     }
-    throw new Error(error?.message || 'E-mail ou senha inválidos')
+    throw new Error('Erro ao fazer login. Tente novamente.')
   }
   const { data: perfil, error: errPerfil } = await supabaseClient
     .from('usuarios')
     .select('*')
     .eq('email', email)
     .maybeSingle()
-  if (errPerfil) throw errPerfil
+  if (errPerfil) throw new Error('Erro ao carregar o perfil. Tente novamente.')
   if (perfil) return perfil
   return { id: data.user.id, email, nome: data.user.user_metadata?.nome || email, papel: 'aluno' }
 }
@@ -81,7 +81,7 @@ export async function sairSupabase() {
 // Cadastro público na tela de login (sem sessão): cria conta no Supabase Auth.
 // O trigger handle_new_user (0001) grava o perfil em public.usuarios.
 export async function cadastrarUsuarioPublico(dados) {
-  if (!supabaseClient) throw new Error('Supabase não configurado')
+  if (!supabaseClient) throw new Error('Serviço indisponível no momento. Tente novamente mais tarde.')
   const { data, error } = await supabaseClient.auth.signUp({
     email: dados.email,
     password: dados.senha,
@@ -98,11 +98,11 @@ export async function cadastrarUsuarioPublico(dados) {
     if (/already registered|already been registered/i.test(error.message || '')) {
       throw new Error('Este e-mail já está cadastrado. Faça login ou use outro e-mail.')
     }
-    throw new Error(error.message || 'Erro ao cadastrar usuário')
+    throw new Error('Erro ao cadastrar usuário. Tente novamente.')
   }
   if (data?.user && !data.session) {
     return {
-      mensagem: 'Cadastro realizado! Confirme o e-mail (se exigido pelo Supabase) e faça login.',
+      mensagem: 'Cadastro realizado! Confirme seu e-mail e faça login.',
       user: data.user
     }
   }
@@ -141,8 +141,13 @@ export async function atualizarTurma(id, dados) {
   return DB.turmas[idx]
 }
 
-export async function removerTurma(id, { excluirAlunos = false } = {}) {
+export async function removerTurma(id, { excluirAlunos = false, onProgresso } = {}) {
+  // onProgresso({ etapa, atual, total }) — chamado a cada aluno removido para
+  // a tela exibir barra de progresso real (exclusão de turma é N requisições).
+  const notificar = (p) => { if (typeof onProgresso === 'function') onProgresso(p) }
+
   if (useSupabase) {
+    let total = 0
     if (excluirAlunos) {
       const { data: alunos, error: errList } = await supabaseClient
         .from('usuarios')
@@ -150,23 +155,39 @@ export async function removerTurma(id, { excluirAlunos = false } = {}) {
         .eq('turma_id', id)
         .eq('papel', 'aluno')
       if (errList) throw errList
+      total = (alunos || []).length
+      notificar({ etapa: 'alunos', atual: 0, total })
+      let concluidos = 0
       for (const aluno of alunos || []) {
         await removerUsuarioCompleto(aluno.id)
+        concluidos++
+        notificar({ etapa: 'alunos', atual: concluidos, total })
       }
     }
+    notificar({ etapa: 'turma', atual: total, total })
     const { error } = await supabaseClient.from('turmas').delete().eq('id', id)
     if (error) throw error
+    notificar({ etapa: 'concluido', atual: total, total })
     return
   }
+
+  let total = 0
   if (excluirAlunos) {
     const ids = DB.usuarios
       .filter(u => u.turma_id === id && u.papel === 'aluno')
       .map(u => u.id)
+    total = ids.length
+    notificar({ etapa: 'alunos', atual: 0, total })
+    let concluidos = 0
     for (const uid of ids) {
       await removerUsuarioCompleto(uid)
+      concluidos++
+      notificar({ etapa: 'alunos', atual: concluidos, total })
     }
   }
+  notificar({ etapa: 'turma', atual: total, total })
   DB.turmas = DB.turmas.filter(t => t.id !== id)
+  notificar({ etapa: 'concluido', atual: total, total })
 }
 
 // ============================ USUÁRIOS ============================
@@ -177,6 +198,30 @@ export async function listarUsuarios() {
     return data
   }
   return [...DB.usuarios]
+}
+
+// Contas de login (auth.users) — SÓ o gestor recebe a lista (RPC 0007).
+// Inclui e-mails nunca confirmados e contas sem perfil em public.usuarios.
+// Lança erro se a migração 0007 não estiver aplicada (a tela trata o fallback).
+export async function listarUsuariosAuth() {
+  if (!useSupabase) {
+    return DB.usuarios.map(u => ({
+      id: u.id,
+      email: u.email,
+      email_confirmado: true,
+      criado_em: u.created_at || null,
+      tem_perfil: true,
+      nome: u.nome,
+      papel: u.papel,
+      turma_id: u.turma_id || null
+    }))
+  }
+  const { data, error } = await supabaseClient.rpc('listar_usuarios_auth')
+  if (error) {
+    console.warn('[listarUsuariosAuth] falha ao carregar contas de login:', error.message || error.code)
+    throw new Error('Não foi possível carregar as contas de login.')
+  }
+  return Array.isArray(data) ? data : []
 }
 
 export async function criarUsuario(dados) {
@@ -195,15 +240,16 @@ export async function criarUsuario(dados) {
         p_senha: dados.senha || dados.senha_padrao || 'Mudar123'
       })
       if (errRpc) {
-        const faltando = /importar_aluno/i.test(errRpc.message || '') || errRpc.code === 'PGRST202'
+        const msg = errRpc.message || ''
+        const faltando = /importar_aluno/i.test(msg) || errRpc.code === 'PGRST202'
         if (faltando) {
-          throw new Error(
-            'RPC importar_aluno não encontrada. Execute o script ' +
-            'supabase/migrations/0003_importacao_alunos.sql no SQL Editor do Supabase ' +
-            'e tente importar novamente. (Detalhe: ' + (errRpc.message || errRpc.code) + ')'
-          )
+          console.warn('[criarUsuario] importação indisponível:', msg || errRpc.code)
+          throw new Error('Erro ao importar aluno. Tente novamente.')
         }
-        throw new Error(errRpc.message || 'Erro ao importar aluno no Supabase')
+        // Mostra apenas mensagens de validação da importação; o resto vira aviso genérico.
+        const validacao = /nome do aluno|e-mail/i.test(msg)
+        console.warn('[criarUsuario] falha na importação:', msg || errRpc.code)
+        throw new Error(validacao ? msg : 'Erro ao importar aluno. Tente novamente.')
       }
       const { data: perfil, error: errPerfil } = await supabaseClient
         .from('usuarios')
@@ -254,14 +300,29 @@ export async function removerUsuarioCompleto(id) {
     })
     if (!errRpc) return
     const rpcFaltando = /excluir_usuario_completo/i.test(errRpc.message || '') || errRpc.code === 'PGRST202'
-    if (!rpcFaltando) throw new Error(errRpc.message || 'Erro ao excluir usuário')
+    if (!rpcFaltando) {
+      // Mostra apenas mensagens de regra de negócio; o resto vira aviso genérico.
+      const msg = errRpc.message || ''
+      const regra = /excluir alunos|acesso negado|proprio usuario|informe o usuario/i.test(msg)
+      console.warn('[removerUsuarioCompleto] falha na exclusão:', msg || errRpc.code)
+      throw new Error(regra ? msg : 'Erro ao excluir usuário. Tente novamente.')
+    }
     // Fallback sem RPC: limpa ligações conhecidas e o perfil.
-    await supabaseClient.from('daily_registers').delete().eq('aluno_id', id)
-    await supabaseClient.from('equipe_membros').delete().eq('aluno_id', id)
-    await supabaseClient.from('historico_atividades').delete().eq('usuario_id', id)
-    await supabaseClient.from('tarefas').delete().eq('aluno_id', id)
+    const limpar = async (tabela, filtro) => {
+      const { error } = await supabaseClient.from(tabela).delete().eq(filtro, id)
+      if (error) console.warn(`[removerUsuarioCompleto] ${tabela}:`, error.message)
+    }
+    await limpar('daily_registers', 'aluno_id')
+    await limpar('equipe_membros', 'aluno_id')
+    await limpar('historico_atividades', 'usuario_id')
+    await limpar('tarefas', 'aluno_id')
     const { error } = await supabaseClient.from('usuarios').delete().eq('id', id)
     if (error) throw error
+
+    // Sem o RPC principal, a conta de login (auth.users + auth.identities)
+    // ficaria órfã — limpa via RPC da migração 0009 (best effort).
+    const { error: errLimpeza } = await supabaseClient.rpc('limpar_auth_orfao', { p_usuario_id: id })
+    if (errLimpeza) console.warn('[removerUsuarioCompleto] limpeza de auth ignorada:', errLimpeza.message || errLimpeza.code)
     return
   }
   DB.daily_registers = DB.daily_registers.filter(d => d.aluno_id !== id)
@@ -340,14 +401,29 @@ async function sincronizarMembrosEquipe(equipeId, membros) {
   }
 }
 
-export async function removerEquipe(id) {
+// onProgresso({ etapa, atual, total }) — etapas "preparando" -> "vinculos" ->
+// "concluido". No modo Supabase a cascata (membros, check-ins, vínculos) roda
+// no banco numa única requisição; no modo mock as etapas são notificadas uma
+// a uma para a barra de progresso da tela.
+export async function removerEquipe(id, { onProgresso } = {}) {
+  const notificar = (p) => { if (typeof onProgresso === 'function') onProgresso(p) }
+  notificar({ etapa: 'preparando', atual: 0, total: 0 })
   if (useSupabase) {
+    notificar({ etapa: 'vinculos', atual: 0, total: 0 })
     const { error } = await supabaseClient.from('equipes').delete().eq('id', id)
     if (error) throw error
+    notificar({ etapa: 'concluido', atual: 0, total: 0 })
     return
   }
+  // Espelha o schema real (0001): cascade em equipe_membros/projeto_equipes/
+  // daily_registers e ON DELETE SET NULL em tarefas.equipe_id.
   DB.equipes = DB.equipes.filter(e => e.id !== id)
-  DB.tarefas = DB.tarefas.filter(t => t.equipe_id !== id)
+  notificar({ etapa: 'vinculos', atual: 1, total: 3 })
+  DB.tarefas = DB.tarefas.map(t => (t.equipe_id === id ? { ...t, equipe_id: null } : t))
+  notificar({ etapa: 'vinculos', atual: 2, total: 3 })
+  DB.daily_registers = DB.daily_registers.filter(d => d.equipe_id !== id)
+  notificar({ etapa: 'vinculos', atual: 3, total: 3 })
+  notificar({ etapa: 'concluido', atual: 3, total: 3 })
 }
 
 // ============================ PROJETOS ============================
@@ -406,14 +482,23 @@ async function sincronizarEquipesProjeto(projetoId, equipesIds) {
   }
 }
 
-export async function removerProjeto(id) {
+// onProgresso({ etapa, atual, total }) — etapas "preparando" -> "tarefas" ->
+// "concluido" (tarefas + checklists + vínculos saem em cascata no banco).
+export async function removerProjeto(id, { onProgresso } = {}) {
+  const notificar = (p) => { if (typeof onProgresso === 'function') onProgresso(p) }
+  notificar({ etapa: 'preparando', atual: 0, total: 0 })
   if (useSupabase) {
+    notificar({ etapa: 'tarefas', atual: 0, total: 0 })
     const { error } = await supabaseClient.from('projetos').delete().eq('id', id)
     if (error) throw error
+    notificar({ etapa: 'concluido', atual: 0, total: 0 })
     return
   }
   DB.projetos = DB.projetos.filter(p => p.id !== id)
+  notificar({ etapa: 'tarefas', atual: 1, total: 2 })
   DB.tarefas = DB.tarefas.filter(t => t.projeto_id !== id)
+  notificar({ etapa: 'tarefas', atual: 2, total: 2 })
+  notificar({ etapa: 'concluido', atual: 2, total: 2 })
 }
 
 // ============================ TAREFAS ============================
@@ -491,15 +576,24 @@ export async function removerTarefa(id) {
 }
 
 // ============================ HISTÓRICO ============================
+// Registro auxiliar: falhas (ex.: RLS) não podem interromper o fluxo principal.
 export async function registrarAtividade(dados) {
-  if (useSupabase) {
-    const { data, error } = await supabaseClient.from('historico_atividades').insert(dados).select().single()
-    if (error) throw error
-    return data
+  try {
+    if (useSupabase) {
+      const { data, error } = await supabaseClient.from('historico_atividades').insert(dados).select().single()
+      if (error) {
+        console.warn('[registrarAtividade] não registrado:', error.message)
+        return null
+      }
+      return data
+    }
+    const atividade = { id: genId(), data_hora: new Date().toISOString(), ...dados }
+    DB.historico_atividades.unshift(atividade)
+    return atividade
+  } catch (e) {
+    console.warn('[registrarAtividade] não registrado:', e?.message || e)
+    return null
   }
-  const atividade = { id: genId(), data_hora: new Date().toISOString(), ...dados }
-  DB.historico_atividades.unshift(atividade)
-  return atividade
 }
 
 export async function listarHistorico() {

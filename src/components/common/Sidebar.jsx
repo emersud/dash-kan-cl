@@ -1,26 +1,27 @@
 import React, { useState } from 'react'
 import { useApp } from '../../context/AppContext.jsx'
-import { isProfessor } from '../../utils/permissions.js'
+import { isProfessor, tarefasPendentesValidacao } from '../../utils/permissions.js'
 
 const NAV_ITEMS = [
   { key: 'profile', label: 'Perfil', icon: 'bi-person-circle' },
   { key: 'students', label: 'Turmas & Alunos', icon: 'bi-people-fill' },
   { key: 'teams', label: 'Equipes', icon: 'bi-people' },
   { key: 'projects', label: 'Projetos', icon: 'bi-clipboard-data' },
-  { key: 'backlog', label: 'Backlog do Projeto', icon: 'bi-list-task', onlyProfessor: true },
+  { key: 'backlog', label: 'Backlog do Projeto', icon: 'bi-list-task' },
   { key: 'dashboard', label: 'Dashboard', icon: 'bi-speedometer2', onlyProfessor: true },
-  { key: 'kanban', label: 'Kanban', icon: 'bi-kanban' },
+  { key: 'kanban', label: 'Kanban', icon: 'bi-kanban', badgePendencias: true },
   { key: 'radar', label: 'Radar de Engajamento', icon: 'bi-radar', onlyProfessor: true },
   { key: 'daily', label: 'Daily Register', icon: 'bi-rocket-takeoff' },
   { key: 'users', label: 'Usuários', icon: 'bi-person-gear', onlyProfessor: true }
 ]
 
 export function Sidebar({ active, onNavigate, onLogout, open, onClose }) {
-  const { usuarioLogado } = useApp()
+  const { usuarioLogado, tarefas } = useApp()
   const [theme, setTheme] = useState(() => document.documentElement.getAttribute('data-theme') || 'dark')
 
   const ehProfessor = isProfessor(usuarioLogado?.papel)
   const itensVisiveis = NAV_ITEMS.filter(i => ehProfessor || !i.onlyProfessor)
+  const pendentesValidacao = ehProfessor ? tarefasPendentesValidacao(tarefas).length : 0
 
   const toggleTheme = () => {
     const newTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light'
@@ -57,6 +58,15 @@ export function Sidebar({ active, onNavigate, onLogout, open, onClose }) {
           >
             <i className={`bi ${item.icon}`}></i>
             <span>{item.label}</span>
+            {item.badgePendencias && pendentesValidacao > 0 && (
+              <span
+                className="badge rounded-pill ms-auto"
+                style={{ backgroundColor: 'var(--badge-pending-bg)', color: 'var(--badge-pending-text)' }}
+                title={`${pendentesValidacao} tarefa(s) concluída(s) aguardando validação`}
+              >
+                {pendentesValidacao}
+              </span>
+            )}
           </button>
         ))}
       </nav>

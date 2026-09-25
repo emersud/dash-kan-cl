@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import * as ds from '../services/dataService.js'
 import { Modal } from '../components/common/Modal.jsx'
 import { Badge } from '../components/common/Badge.jsx'
-import { isProfessor } from '../utils/permissions.js'
+import { ThOrdenavel, useOrdenacao, ordenarPor } from '../components/common/TableSort.jsx'
+import { isProfessor, podeExcluirUsuario } from '../utils/permissions.js'
 
 const PAPEIS = [
   { valor: 'gestor', label: 'Gestor' },
@@ -15,12 +16,18 @@ export default function UsersPage() {
   const { usuarios, setUsuarios, turmas, usuarioLogado, setUsuarioLogado, refreshAll } = useApp()
   const [busca, setBusca] = useState('')
   const [filtroPapel, setFiltroPapel] = useState('all')
+  const [filtroTurma, setFiltroTurma] = useState('all')
+  const [ordem, ordenar] = useOrdenacao('nome', 'asc')
   const [editUser, setEditUser] = useState(null)
   const [showEdit, setShowEdit] = useState(false)
   const [form, setForm] = useState({ nome: '', email: '', papel: 'aluno', senha: '', turma_id: '' })
   const [erro, setErro] = useState('')
   const [confirmRemover, setConfirmRemover] = useState(null)
   const [feedback, setFeedback] = useState('')
+  // Contas de login (auth.users) — carregadas SOMENTE para o gestor.
+  // null = RPC indisponível (migração 0007 não aplicada).
+  const [contasAuth, setContasAuth] = useState(null)
+  const [filtroStatus, setFiltroStatus] = useState('all')
 
   // Acesso à página: gestor ou professor. Só o GESTOR muda o perfil de acesso;
 // o PROFESSOR apenas realoca a turma do aluno.
@@ -28,18 +35,114 @@ export default function UsersPage() {
   const podeGerenciar = isProfessor(usuarioLogado?.papel)
   const podeMudarPapel = ehGestor
 
-  const usuariosFiltrados = usuarios.filter(u => {
+  const carregarContasAuth = async () => {
+    if (!ehGestor) return
+    try {
+      setContasAuth(await ds.listarUsuariosAuth())
+    } catch (e) {
+      console.warn('[UsersPage] contas auth indisponíveis:', e?.message || e)
+      setContasAuth(null)
+    }
+  }
+
+  useEffect(() => {
+    carregarContasAuth()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ehGestor])
+
+  const mapaAuth = useMemo(() => {
+    const map = new Map()
+    ;(contasAuth || []).forEach(a => map.set(a.id, a))
+    return map
+  }, [contasAuth])
+
+  // GESTOR: perfis + contas que existem só no auth.users (sem perfil público).
+  // Professor: permanece exatamente a lista de perfis de sempre.
+  const baseUsuarios = useMemo(() => {
+    const perfis = usuarios.map(u => {
+      const conta = mapaAuth.get(u.id)
+      return {
+        ...u,
+        tem_perfil: true,
+        email_confirmado: conta ? conta.email_confirmado : (contasAuth ? null : undefined)
+      }
+    })
+    if (!ehGestor || !Array.isArray(contasAuth)) return perfis
+    const idsPerfis = new Set(usuarios.map(u => u.id))
+    const semPerfil = contasAuth
+      .filter(a => !idsPerfis.has(a.id))
+      .map(a => ({
+        id: a.id,
+        nome: a.nome || null,
+        email: a.email,
+        papel: a.papel || null,
+        turma_id: a.turma_id || null,
+        tem_perfil: false,
+        email_confirmado: a.email_confirmado,
+        criadoEm: a.criado_em
+      }))
+    return [...perfis, ...semPerfil]
+  }, [usuarios, mapaAuth, contasAuth, ehGestor])
+
+  const mostrarStatus = ehGestor && Array.isArray(contasAuth) && contasAuth.length > 0
+
+  const turmasPorId = useMemo(() => {
+    const map = new Map()
+    turmas.forEach(t => map.set(t.id, t))
+    return map
+  }, [turmas])
+
+  const usuariosFiltrados = useMemo(() => baseUsuarios.filter(u => {
     const okBusca = !busca.trim()
       || (u.nome || '').toLowerCase().includes(busca.toLowerCase())
       || (u.email || '').toLowerCase().includes(busca.toLowerCase())
     const okPapel = filtroPapel === 'all' || u.papel === filtroPapel
-    return okBusca && okPapel
-  })
+    const okTurma = filtroTurma === 'all'
+      || (filtroTurma === 'none' ? !u.turma_id : u.turma_id === filtroTurma)
+    const okStatus = !mostrarStatus || filtroStatus === 'all'
+      || (filtroStatus === 'nao_confirmado' && u.email_confirmado === false)
+      || (filtroStatus === 'confirmado' && u.email_confirmado === true)
+      || (filtroStatus === 'sem_perfil' && u.tem_perfil === false)
+      || (filtroStatus === 'sem_auth' && u.tem_perfil === true && u.email_confirmado == null)
+    return okBusca && okPapel && okTurma && okStatus
+  }), [baseUsuarios, busca, filtroPapel, filtroTurma, filtroStatus, mostrarStatus])
+
+  // Ordenação por clique no cabeçalho (seta asc/desc)
+  const ordenacaoUsuarios = useMemo(() => ({
+    nome: u => u.nome || u.email,
+    email: u => u.email,
+    papel: u => PAPEIS.find(p => p.valor === u.papel)?.label || u.papel || 'zz',
+    turma: u => turmasPorId.get(u.turma_id)?.nome || null,
+    status: u => u.tem_perfil === false
+      ? 'A Sem perfil'
+      : u.email_confirmado === false
+        ? 'B E-mail não confirmado'
+        : u.email_confirmado === true
+          ? 'C Confirmado'
+          : 'D Sem conta auth'
+  }), [turmasPorId])
+
+  const usuariosVisiveis = useMemo(
+    () => ordenarPor(usuariosFiltrados, ordenacaoUsuarios, ordem.campo, ordem.direcao),
+    [usuariosFiltrados, ordenacaoUsuarios, ordem]
+  )
 
   const podeEditarAlvo = (user) => {
+    // Conta só no auth.users (sem perfil público): só exclusão
+    if (user?.tem_perfil === false) return false
     if (ehGestor) return true
     // Professor: só alunos (alterar turma)
     return user?.papel === 'aluno'
+  }
+
+  // REGRA: gestor exclui qualquer um; professor exclui SOMENTE alunos
+  // (não pode excluir gestores nem outros professores); ninguém exclui a si.
+  const podeExcluirAlvo = (user) => podeExcluirUsuario(usuarioLogado, user)
+
+  const tituloExcluir = (user) => {
+    if (user.id === usuarioLogado?.id) return 'Você não pode excluir o próprio usuário'
+    if (!ehGestor && user.papel !== 'aluno') return 'Professores só podem excluir alunos'
+    return 'Excluir usuário'
   }
 
   const abrirEditar = (user) => {
@@ -113,9 +216,14 @@ export default function UsersPage() {
   }
 
   const removerUsuario = async () => {
-    const alvo = usuarios.find(u => u.id === confirmRemover)
+    const alvo = baseUsuarios.find(u => u.id === confirmRemover)
     if (alvo && alvo.id === usuarioLogado?.id) {
       setFeedback('Você não pode excluir o próprio usuário logado.')
+      setConfirmRemover(null)
+      return
+    }
+    if (alvo && !podeExcluirAlvo(alvo)) {
+      setFeedback('Professores só podem excluir alunos. Peça ao gestor para excluir este usuário.')
       setConfirmRemover(null)
       return
     }
@@ -123,9 +231,10 @@ export default function UsersPage() {
     setConfirmRemover(null)
     setFeedback('Usuário excluído com sucesso!')
     await refreshAll()
+    await carregarContasAuth()
   }
 
-  const getTurma = (id) => turmas.find(t => t.id === id)
+  const getTurma = (id) => turmasPorId.get(id)
 
   if (!podeGerenciar) {
     return (
@@ -146,8 +255,8 @@ export default function UsersPage() {
           <h4 className="mb-1">Gerenciar Usuários</h4>
           <small className="text-muted-custom">
             {podeMudarPapel
-              ? 'Edite perfis de acesso (gestor, professor, aluno), dados e exclua usuários'
-              : 'Como professor, você pode alterar apenas a turma de alunos. O perfil de acesso é alterado apenas pelo gestor.'}
+              ? 'Edite perfis de acesso (gestor, professor, aluno), dados e exclua usuários — incluindo contas de e-mail nunca confirmado'
+              : 'Como professor, você pode alterar apenas a turma de alunos e excluir apenas alunos — o perfil de acesso é alterado e gestores/professores são excluídos apenas pelo gestor.'}
           </small>
         </div>
       </div>
@@ -159,9 +268,16 @@ export default function UsersPage() {
         </div>
       )}
 
+      {ehGestor && contasAuth === null && (
+        <div className="alert alert-info py-2 mb-4">
+          <i className="bi bi-info-circle me-2"></i>
+          Não foi possível carregar o status das contas de e-mail. A listagem abaixo mostra apenas os perfis cadastrados.
+        </div>
+      )}
+
       <div className="card">
         <div className="card-header d-flex justify-content-between align-items-center flex-wrap gap-2" style={{ backgroundColor: 'var(--bg-card)' }}>
-          <h6 className="mb-0">Usuários do Sistema ({usuariosFiltrados.length})</h6>
+          <h6 className="mb-0">Usuários do Sistema ({usuariosVisiveis.length})</h6>
           <div className="d-flex gap-2 flex-wrap">
             <input
               className="form-control form-control-sm"
@@ -172,47 +288,105 @@ export default function UsersPage() {
             />
             <select
               className="form-select form-select-sm"
+              style={{ width: 170 }}
+              value={filtroTurma}
+              onChange={(e) => setFiltroTurma(e.target.value)}
+              title="Filtrar por turma"
+            >
+              <option value="all">Todas as turmas</option>
+              <option value="none">Sem turma</option>
+              {turmas.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+            </select>
+            <select
+              className="form-select form-select-sm"
               style={{ width: 160 }}
               value={filtroPapel}
               onChange={(e) => setFiltroPapel(e.target.value)}
+              title="Filtrar por perfil de acesso"
             >
               <option value="all">Todos os perfis</option>
               {PAPEIS.map(p => <option key={p.valor} value={p.valor}>{p.label}</option>)}
             </select>
+            {mostrarStatus && (
+              <select
+                className="form-select form-select-sm"
+                style={{ width: 190 }}
+                value={filtroStatus}
+                onChange={(e) => setFiltroStatus(e.target.value)}
+                title="Filtrar por status da conta"
+              >
+                <option value="all">Todos os status</option>
+                <option value="nao_confirmado">E-mail não confirmado</option>
+                <option value="confirmado">E-mail confirmado</option>
+                <option value="sem_perfil">Sem perfil público</option>
+                <option value="sem_auth">Sem conta de login</option>
+              </select>
+            )}
           </div>
         </div>
         <div className="table-responsive">
           <table className="table table-hover mb-0">
             <thead>
               <tr>
-                <th>Usuário</th>
-                <th>E-mail</th>
-                <th>Perfil de Acesso</th>
-                <th>Turma</th>
+                <ThOrdenavel campo="nome" rotulo="Usuário" ordem={ordem} onOrdenar={ordenar} />
+                <ThOrdenavel campo="email" rotulo="E-mail" ordem={ordem} onOrdenar={ordenar} />
+                <ThOrdenavel campo="papel" rotulo="Perfil de Acesso" ordem={ordem} onOrdenar={ordenar} />
+                <ThOrdenavel campo="turma" rotulo="Turma" ordem={ordem} onOrdenar={ordenar} />
+                {mostrarStatus && (
+                  <ThOrdenavel campo="status" rotulo="Status da Conta" ordem={ordem} onOrdenar={ordenar} />
+                )}
                 <th style={{ width: 120 }}>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {usuariosFiltrados.length === 0 ? (
-                <tr><td colSpan="5" className="text-center text-muted-custom py-4">Nenhum usuário encontrado.</td></tr>
-              ) : usuariosFiltrados.map(user => {
+              {usuariosVisiveis.length === 0 ? (
+                <tr><td colSpan={mostrarStatus ? 6 : 5} className="text-center text-muted-custom py-4">Nenhum usuário encontrado.</td></tr>
+              ) : usuariosVisiveis.map(user => {
                 const turma = getTurma(user.turma_id)
-                const ehProprio = user.id === usuarioLogado?.id
+                const podeExcluir = podeExcluirAlvo(user)
                 return (
                   <tr key={user.id}>
                     <td>
                       <i className="bi bi-person-circle me-2" style={{ color: 'var(--color-primary)' }}></i>
-                      {user.nome}
-                      {ehProprio && <span className="badge badge-neutral ms-2 rounded-pill">você</span>}
+                      {user.nome || (mostrarStatus && user.tem_perfil === false ? 'Conta sem cadastro' : '')}
+                      {user.id === usuarioLogado?.id && <span className="badge badge-neutral ms-2 rounded-pill">você</span>}
                     </td>
                     <td className="text-muted-custom">{user.email}</td>
-                    <td><Badge tipo={user.papel}>{PAPEIS.find(p => p.valor === user.papel)?.label || user.papel}</Badge></td>
+                    <td>
+                      {user.papel
+                        ? <Badge tipo={user.papel}>{PAPEIS.find(p => p.valor === user.papel)?.label || user.papel}</Badge>
+                        : <span className="badge badge-neutral rounded-pill">—</span>}
+                    </td>
                     <td className="text-muted-custom">{turma?.nome || '—'}</td>
+                    {mostrarStatus && (
+                      <td>
+                        {user.tem_perfil === false && (
+                          <span className="badge badge-danger rounded-pill" title="Conta criada no login sem perfil no sistema — pode ser excluída">
+                            <i className="bi bi-person-x me-1"></i>Sem perfil
+                          </span>
+                        )}
+                        {user.email_confirmado === false && (
+                          <span className="badge badge-pending rounded-pill" title="E-mail nunca confirmado">
+                            <i className="bi bi-envelope-exclamation me-1"></i>E-mail não confirmado
+                          </span>
+                        )}
+                        {user.email_confirmado === true && user.tem_perfil !== false && (
+                          <span className="badge badge-done rounded-pill"><i className="bi bi-check-circle me-1"></i>Confirmado</span>
+                        )}
+                        {user.tem_perfil === true && user.email_confirmado == null && (
+                          <span className="badge badge-neutral rounded-pill" title="Perfil criado sem conta de login correspondente">
+                            <i className="bi bi-person-lock me-1"></i>Sem conta de login
+                          </span>
+                        )}
+                      </td>
+                    )}
                     <td>
                       <div className="d-flex gap-1">
                         <button
                           className="theme-toggle"
-                          title={podeEditarAlvo(user) ? 'Editar usuário' : 'Somente o gestor pode editar este usuário'}
+                          title={user.tem_perfil === false
+                            ? 'Conta sem perfil no sistema — use a exclusão'
+                            : (podeEditarAlvo(user) ? 'Editar usuário' : 'Somente o gestor pode editar este usuário')}
                           disabled={!podeEditarAlvo(user)}
                           style={!podeEditarAlvo(user) ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
                           onClick={() => podeEditarAlvo(user) && abrirEditar(user)}
@@ -221,10 +395,10 @@ export default function UsersPage() {
                         </button>
                         <button
                           className="theme-toggle text-danger"
-                          title="Excluir usuário"
-                          disabled={ehProprio}
-                          style={ehProprio ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
-                          onClick={() => !ehProprio && setConfirmRemover(user.id)}
+                          title={tituloExcluir(user)}
+                          disabled={!podeExcluir}
+                          style={!podeExcluir ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                          onClick={() => podeExcluir && setConfirmRemover(user.id)}
                         >
                           <i className="bi bi-trash"></i>
                         </button>
@@ -307,7 +481,7 @@ export default function UsersPage() {
             <div className="modal-content">
               <div className="modal-header"><h5 className="modal-title">Excluir usuário</h5></div>
               <div className="modal-body">
-                Tem certeza que deseja excluir <strong>{usuarios.find(u => u.id === confirmRemover)?.nome}</strong>?
+                Tem certeza que deseja excluir <strong>{(baseUsuarios.find(u => u.id === confirmRemover)?.nome) || baseUsuarios.find(u => u.id === confirmRemover)?.email}</strong>?
                 Esta ação não pode ser desfeita.
               </div>
               <div className="modal-footer">

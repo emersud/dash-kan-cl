@@ -3,13 +3,16 @@ import { useApp } from '../context/AppContext.jsx'
 import * as ds from '../services/dataService.js'
 import { ProjectForm } from '../components/projects/ProjectForm.jsx'
 import { Badge } from '../components/common/Badge.jsx'
-import { isProfessor, podeVerProjeto } from '../utils/permissions.js'
+import { isProfessor, podeVerProjeto, podeCriarProjeto, tarefasPendentesValidacao } from '../utils/permissions.js'
 
 export default function ProjectsPage() {
-  const { projetos, tarefas, equipes, usuarioLogado, setBacklogProjetoId, setActivePage } = useApp()
+  const { projetos, tarefas, equipes, usuarioLogado, setProjetos, setTarefas, refreshAll, setBacklogProjetoId, setActivePage } = useApp()
   const [showProjeto, setShowProjeto] = useState(false)
   const [editProjeto, setEditProjeto] = useState(null)
   const [confirmRemoverProjeto, setConfirmRemoverProjeto] = useState(null)
+  const [progresso, setProgresso] = useState(null)
+  const [feedback, setFeedback] = useState('')
+  const [erroRemocao, setErroRemocao] = useState(null)
 
   const ehProfessor = isProfessor(usuarioLogado?.papel)
   const projetosVisiveis = projetos.filter(p => podeVerProjeto(usuarioLogado, p, equipes))
@@ -17,10 +20,56 @@ export default function ProjectsPage() {
   const openNovaProjeto = () => { setEditProjeto(null); setShowProjeto(true) }
   const openEditarProjeto = (p) => { setEditProjeto(p); setShowProjeto(true) }
 
+  // Exclusão com barra de progresso (mesma diretriz da exclusão de turma):
+  // o modal mostra a barra, o rodapé vira "Aguarde...", e ao final a tela
+  // exibe a mensagem de sucesso — falha vira alerta removível em vez de travar.
   const removerProjeto = async () => {
-    await ds.removerProjeto(confirmRemoverProjeto)
-    setConfirmRemoverProjeto(null)
+    const projeto = confirmRemoverProjeto
+    if (!projeto?.id || progresso) return
+    const nome = projeto.nome || 'Projeto'
+    const totalTarefas = tarefas.filter(t => t.projeto_id === projeto.id).length
+
+    setErroRemocao(null)
+    setFeedback('')
+    setProgresso({ etapa: 'preparando', atual: 0, total: 0 })
+
+    try {
+      await ds.removerProjeto(projeto.id, { onProgresso: setProgresso })
+      setProjetos(prev => prev.filter(p => p.id !== projeto.id))
+      setTarefas(prev => prev.filter(t => t.projeto_id !== projeto.id))
+      setFeedback(`Projeto "${nome}" excluído com sucesso! ${totalTarefas} tarefa(s) e seus checklists também foram removidos.`)
+      // mantém o 100% / "Concluído!" visíveis antes de fechar o modal
+      await new Promise(resolve => setTimeout(resolve, 450))
+    } catch (err) {
+      console.error('[ProjectsPage] falha ao excluir projeto:', err)
+      setErroRemocao('Não foi possível excluir o projeto. Tente novamente.')
+    } finally {
+      setProgresso(null)
+      setConfirmRemoverProjeto(null)
+      await refreshAll()
+    }
   }
+
+  // Percentual e texto da barra conforme a etapa recebida do serviço
+  const progressoInfo = progresso ? (() => {
+    const { etapa, atual = 0, total = 0 } = progresso
+    if (etapa === 'tarefas') {
+      const pct = total > 0 && atual > 0 ? 30 + Math.round((atual / total) * 60) : 60
+      return {
+        pct,
+        texto: atual > 0
+          ? `Removendo tarefas: ${atual} de ${total}...`
+          : 'Removendo tarefas, checklists e vínculos do projeto...'
+      }
+    }
+    if (etapa === 'concluido') return { pct: 100, texto: 'Concluído!' }
+    return { pct: 10, texto: 'Preparando a exclusão...' }
+  })() : null
+
+  const projetoConfirm = confirmRemoverProjeto || null
+  const tarefasConfirm = confirmRemoverProjeto?.id
+    ? tarefas.filter(t => t.projeto_id === confirmRemoverProjeto.id)
+    : []
 
   const getEquipe = (id) => equipes.find(e => e.id === id)
 
@@ -36,12 +85,32 @@ export default function ProjectsPage() {
           <h4 className="mb-1">Projetos</h4>
           <small className="text-muted-custom">Gerenciar projetos e vincular equipes</small>
         </div>
-        {ehProfessor && (
+        {podeCriarProjeto(usuarioLogado?.papel) && (
           <button className="btn btn-primary-theme" onClick={openNovaProjeto}>
             <i className="bi bi-plus-lg me-1"></i>Novo Projeto
           </button>
         )}
       </div>
+
+      {erroRemocao && (
+        <div className="alert alert-danger py-2 d-flex justify-content-between align-items-center">
+          <span><i className="bi bi-exclamation-triangle me-2"></i>{erroRemocao}</span>
+          <button className="btn btn-sm btn-outline-danger" onClick={() => setErroRemocao(null)}>Fechar</button>
+        </div>
+      )}
+
+      {feedback && (
+        <div className="alert alert-success py-2 d-flex justify-content-between align-items-center">
+          <span><i className="bi bi-check-circle-fill me-2"></i>{feedback}</span>
+          <button className="btn-close" onClick={() => setFeedback('')}></button>
+        </div>
+      )}
+
+      {!!progresso && !erroRemocao && (
+        <div className="alert alert-info py-2 small mb-3">
+          <i className="bi bi-arrow-repeat me-1"></i>Excluindo projeto... Não feche a página.
+        </div>
+      )}
 
       {projetosVisiveis.length === 0 && (
         <div className="card">
@@ -55,7 +124,9 @@ export default function ProjectsPage() {
       <div className="row g-3">
         {projetosVisiveis.map(projeto => {
           const projTarefas = tarefas.filter(t => t.projeto_id === projeto.id)
-          const concluidas = projTarefas.filter(t => t.status === 'concluido').length
+          // Conclusão efetiva: só vale com a flag do professor/gestor
+          const concluidas = projTarefas.filter(t => t.status === 'concluido' && !t.aguardando_validacao).length
+          const pendentes = tarefasPendentesValidacao(projTarefas).length
           const percentual = projTarefas.length ? Math.round((concluidas / projTarefas.length) * 100) : 0
           const equipesProjeto = (projeto.equipes_ids || []).map(getEquipe).filter(Boolean)
           return (
@@ -72,7 +143,7 @@ export default function ProjectsPage() {
                     {ehProfessor && (
                       <div className="d-flex gap-1">
                         <button className="theme-toggle" onClick={() => openEditarProjeto(projeto)} title="Editar"><i className="bi bi-pencil"></i></button>
-                        <button className="theme-toggle text-danger" onClick={() => setConfirmRemoverProjeto(projeto.id)} title="Excluir"><i className="bi bi-trash"></i></button>
+                        <button className="theme-toggle text-danger" onClick={() => { setErroRemocao(null); setConfirmRemoverProjeto(projeto) }} disabled={!!progresso} style={progresso ? { opacity: 0.4, cursor: 'not-allowed' } : {}} title="Excluir"><i className={progresso ? 'bi bi-arrow-repeat' : 'bi bi-trash'}></i></button>
                       </div>
                     )}
                   </div>
@@ -102,6 +173,11 @@ export default function ProjectsPage() {
                     <div className="progress" style={{ height: 8, backgroundColor: 'var(--bg-badge)' }}>
                       <div className="progress-bar" style={{ width: `${percentual}%` }}></div>
                     </div>
+                    {pendentes > 0 && ehProfessor && (
+                      <small className="badge badge-pending mt-2 d-inline-block" title="Concluídas pelo aluno, aguardando sua validação">
+                        <i className="bi bi-hourglass-split me-1"></i>{pendentes} aguardando validação
+                      </small>
+                    )}
                   </div>
 
                   <div className="mt-auto">
@@ -123,15 +199,67 @@ export default function ProjectsPage() {
         projetoEdit={editProjeto}
       />
 
+      {/* Confirmar exclusão de projeto (barra de progresso durante a exclusão) */}
       {confirmRemoverProjeto && (
         <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} tabIndex="-1">
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
-              <div className="modal-header"><h5 className="modal-title">Excluir projeto</h5></div>
-              <div className="modal-body">Excluir este projeto também removerá todas as tarefas associadas. Continuar?</div>
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  {progresso
+                    ? <><i className="bi bi-arrow-repeat me-2"></i>Excluindo projeto</>
+                    : 'Excluir projeto'}
+                </h5>
+              </div>
+              <div className="modal-body">
+                {progresso ? (
+                  <>
+                    <p className="mb-3">
+                      Excluindo <strong>{projetoConfirm?.nome || 'projeto'}</strong>
+                      {tarefasConfirm.length > 0 ? <> e <strong>{tarefasConfirm.length}</strong> tarefa(s)</> : ''}...
+                    </p>
+                    <div className="progress mb-2" style={{ height: 22 }}>
+                      <div
+                        className="progress-bar progress-bar-striped progress-bar-animated"
+                        role="progressbar"
+                        style={{ width: `${progressoInfo.pct}%` }}
+                        aria-valuenow={progressoInfo.pct}
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                      >
+                        {progressoInfo.pct}%
+                      </div>
+                    </div>
+                    <small className="text-muted-custom d-block">{progressoInfo.texto}</small>
+                    <small className="text-muted-custom d-block mt-2">
+                      <i className="bi bi-hourglass-split me-1"></i>Este processo pode levar alguns instantes. Não feche a página.
+                    </small>
+                  </>
+                ) : (
+                  <>
+                    <p className="mb-2">
+                      Tem certeza que deseja excluir o projeto <strong>{projetoConfirm?.nome || ''}</strong>?
+                      Esta ação não pode ser desfeita.
+                    </p>
+                    <p className="mb-0 text-muted-custom small">
+                      Excluir este projeto também removerá as {tarefasConfirm.length} tarefa(s) associadas e seus checklists.
+                    </p>
+                  </>
+                )}
+              </div>
               <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setConfirmRemoverProjeto(null)}>Cancelar</button>
-                <button className="btn btn-danger" onClick={removerProjeto}>Excluir</button>
+                {progresso ? (
+                  <button className="btn btn-secondary" disabled>
+                    <i className="bi bi-arrow-repeat me-1"></i>Aguarde...
+                  </button>
+                ) : (
+                  <>
+                    <button className="btn btn-secondary" onClick={() => setConfirmRemoverProjeto(null)}>Cancelar</button>
+                    <button className="btn btn-danger" onClick={removerProjeto}>
+                      <i className="bi bi-trash me-1"></i>Excluir
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

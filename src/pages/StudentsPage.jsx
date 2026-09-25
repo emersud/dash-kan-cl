@@ -15,6 +15,8 @@ export default function StudentsPage() {
   const [feedback, setFeedback] = useState('')
   const [confirmRemover, setConfirmRemover] = useState(null)
   const [excluirAlunos, setExcluirAlunos] = useState(false)
+  const [progresso, setProgresso] = useState(null)
+  const [erroRemocao, setErroRemocao] = useState(null)
 
   const ehProfessor = usuarioLogado?.papel === 'professor' || usuarioLogado?.papel === 'gestor'
   const alunos = usuarios.filter(u => u.papel === 'aluno')
@@ -69,23 +71,58 @@ export default function StudentsPage() {
     setShowImport(true)
   }
 
+  // Exclusão com barra de progresso: cada aluno removido atualiza a barra
+  // (exclusão da turma é N requisições sequenciais) e, ao final, a tela
+  // exibe a mensagem de sucesso — sem deixar o usuário numa tela parada.
   const removerTurma = async () => {
-    const turmaId = confirmRemover?.id
-    if (!turmaId) return
-    const alunosDaTurma = usuarios.filter(u => u.turma_id === turmaId && u.papel === 'aluno')
-    await ds.removerTurma(turmaId, { excluirAlunos })
-    if (excluirAlunos) {
-      const ids = alunosDaTurma.map(a => a.id)
-      setUsuarios(prev => prev.filter(u => !ids.includes(u.id)))
+    const turma = confirmRemover
+    if (!turma?.id || progresso) return
+
+    const alunosDaTurma = usuarios.filter(u => u.turma_id === turma.id && u.papel === 'aluno')
+    const excluirAgora = excluirAlunos
+
+    setErroRemocao(null)
+    setProgresso({ etapa: 'preparando', atual: 0, total: alunosDaTurma.length })
+
+    try {
+      await ds.removerTurma(turma.id, { excluirAlunos: excluirAgora, onProgresso: setProgresso })
+      if (excluirAgora) {
+        const ids = alunosDaTurma.map(a => a.id)
+        setUsuarios(prev => prev.filter(u => !ids.includes(u.id)))
+      }
+      setTurmas(prev => prev.filter(t => t.id !== turma.id))
+      setFeedback(excluirAgora
+        ? `Turma "${turma.nome}" excluída com sucesso! ${alunosDaTurma.length} aluno(s) (e todas as suas ligações) também foram removidos.`
+        : `Turma "${turma.nome}" excluída com sucesso! ${alunosDaTurma.length} aluno(s) permanecem "Sem turma" e podem ser realocados.`)
+      // mantém o 100% / "Concluído!" visíveis antes de fechar o modal
+      await new Promise(resolve => setTimeout(resolve, 450))
+    } catch (err) {
+      console.error('[StudentsPage] falha ao excluir turma:', err)
+        setErroRemocao('Não foi possível excluir a turma. Tente novamente.')
+    } finally {
+      setProgresso(null)
+      setConfirmRemover(null)
+      setExcluirAlunos(false)
+      await refreshAll()
     }
-    setTurmas(prev => prev.filter(t => t.id !== turmaId))
-    setConfirmRemover(null)
-    setExcluirAlunos(false)
-    setFeedback(excluirAlunos
-      ? `Turma excluída e ${alunosDaTurma.length} aluno(s) (e suas ligações) removidos com sucesso!`
-      : 'Turma excluída com sucesso! Alunos movidos para "Sem turma".')
-    await refreshAll()
   }
+
+  // Percentual e texto exibidos na barra conforme a etapa recebida do serviço
+  const progressoInfo = progresso ? (() => {
+    const { etapa, atual = 0, total = 0 } = progresso
+    if (etapa === 'alunos') {
+      const pct = total > 0 ? 10 + Math.round((atual / total) * 80) : 10
+      return {
+        pct,
+        texto: atual > 0
+          ? `Removendo aluno(s) e ligações: ${atual} de ${total}...`
+          : `Localizando ${total} aluno(s) para excluir...`
+      }
+    }
+    if (etapa === 'turma') return { pct: 95, texto: 'Excluindo a turma e os vínculos restantes...' }
+    if (etapa === 'concluido') return { pct: 100, texto: 'Concluído!' }
+    return { pct: 5, texto: 'Preparando a exclusão...' }
+  })() : null
 
   const alunosDaTurmaConfirm = confirmRemover
     ? usuarios.filter(u => u.turma_id === confirmRemover.id && u.papel === 'aluno')
@@ -104,6 +141,13 @@ export default function StudentsPage() {
           </button>
         )}
       </div>
+
+      {erroRemocao && (
+        <div className="alert alert-danger py-2 d-flex justify-content-between align-items-center">
+          <span><i className="bi bi-exclamation-triangle me-2"></i>{erroRemocao}</span>
+          <button className="btn btn-sm btn-outline-danger" onClick={() => setErroRemocao(null)}>Fechar</button>
+        </div>
+      )}
 
       {feedback && (
         <div className="alert alert-success py-2 d-flex justify-content-between align-items-center">
@@ -141,7 +185,9 @@ export default function StudentsPage() {
                         <button
                           className="theme-toggle text-danger"
                           title="Excluir turma"
-                          onClick={() => { setExcluirAlunos(false); setConfirmRemover(turma) }}
+                          disabled={!!progresso}
+                          style={progresso ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                          onClick={() => { setExcluirAlunos(false); setErroRemocao(null); setConfirmRemover(turma) }}
                         >
                           <i className="bi bi-trash"></i>
                         </button>
@@ -231,52 +277,95 @@ export default function StudentsPage() {
         <ExcelUploader turmaId={turmaImportId} onImportados={handleImportados} onCancel={() => setShowImport(false)} />
       </Modal>
 
-      {/* Confirmar exclusão de turma */}
+      {/* Confirmar exclusão de turma (barra de progresso durante a exclusão) */}
       {confirmRemover && (
         <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} tabIndex="-1">
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
-              <div className="modal-header"><h5 className="modal-title">Excluir turma</h5></div>
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  {progresso
+                    ? <><i className="bi bi-arrow-repeat me-2"></i>Excluindo turma</>
+                    : 'Excluir turma'}
+                </h5>
+              </div>
               <div className="modal-body">
-                <p>
-                  Tem certeza que deseja excluir a turma <strong>{confirmRemover.nome}</strong>?
-                  Esta ação não pode ser desfeita.
-                </p>
-                {alunosDaTurmaConfirm.length > 0 && (
-                  <div className="form-check mt-3 p-3 border rounded" style={{ backgroundColor: 'var(--bg-card)' }}>
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      id="excluirAlunosTurma"
-                      checked={excluirAlunos}
-                      onChange={(e) => setExcluirAlunos(e.target.checked)}
-                    />
-                    <label className="form-check-label w-100" htmlFor="excluirAlunosTurma">
-                      <strong>Também excluir os {alunosDaTurmaConfirm.length} aluno(s)</strong> desta turma
-                      e todas as suas ligações (daily registers, tarefas alocadas, histórico, equipes, etc.)
-                    </label>
-                    <ul className="small text-muted-custom mb-0 mt-2 ps-3">
-                      {alunosDaTurmaConfirm.slice(0, 5).map(a => <li key={a.id}>{a.nome}</li>)}
-                      {alunosDaTurmaConfirm.length > 5 && (
-                        <li>... e mais {alunosDaTurmaConfirm.length - 5} aluno(s)</li>
-                      )}
-                    </ul>
-                    {!excluirAlunos && (
-                      <small className="text-muted-custom d-block mt-2">
-                        Se desmarcado, apenas a turma é excluída e os alunos ficam "Sem turma" (podem ser realocados em Gerenciar Usuários).
-                      </small>
+                {progresso ? (
+                  <>
+                    <p className="mb-3">
+                      Excluindo <strong>{confirmRemover.nome}</strong>
+                      {excluirAlunos && alunosDaTurmaConfirm.length > 0
+                        ? <> e <strong>{alunosDaTurmaConfirm.length}</strong> aluno(s)</>
+                        : ''}...
+                    </p>
+                    <div className="progress mb-2" style={{ height: 22 }}>
+                      <div
+                        className="progress-bar progress-bar-striped progress-bar-animated"
+                        role="progressbar"
+                        style={{ width: `${progressoInfo.pct}%` }}
+                        aria-valuenow={progressoInfo.pct}
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                      >
+                        {progressoInfo.pct}%
+                      </div>
+                    </div>
+                    <small className="text-muted-custom d-block">{progressoInfo.texto}</small>
+                    <small className="text-muted-custom d-block mt-2">
+                      <i className="bi bi-hourglass-split me-1"></i>Este processo pode levar alguns instantes. Não feche a página.
+                    </small>
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      Tem certeza que deseja excluir a turma <strong>{confirmRemover.nome}</strong>?
+                      Esta ação não pode ser desfeita.
+                    </p>
+                    {alunosDaTurmaConfirm.length > 0 && (
+                      <div className="form-check mt-3 p-3 border rounded" style={{ backgroundColor: 'var(--bg-card)' }}>
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          id="excluirAlunosTurma"
+                          checked={excluirAlunos}
+                          onChange={(e) => setExcluirAlunos(e.target.checked)}
+                        />
+                        <label className="form-check-label w-100" htmlFor="excluirAlunosTurma">
+                          <strong>Também excluir os {alunosDaTurmaConfirm.length} aluno(s)</strong> desta turma
+                          e todas as suas ligações (daily registers, tarefas alocadas, histórico, equipes, etc.)
+                        </label>
+                        <ul className="small text-muted-custom mb-0 mt-2 ps-3">
+                          {alunosDaTurmaConfirm.slice(0, 5).map(a => <li key={a.id}>{a.nome}</li>)}
+                          {alunosDaTurmaConfirm.length > 5 && (
+                            <li>... e mais {alunosDaTurmaConfirm.length - 5} aluno(s)</li>
+                          )}
+                        </ul>
+                        {!excluirAlunos && (
+                          <small className="text-muted-custom d-block mt-2">
+                            Se desmarcado, apenas a turma é excluída e os alunos ficam "Sem turma" (podem ser realocados em Gerenciar Usuários).
+                          </small>
+                        )}
+                      </div>
                     )}
-                  </div>
-                )}
-                {alunosDaTurmaConfirm.length === 0 && (
-                  <small className="text-muted-custom d-block">Esta turma não possui alunos.</small>
+                    {alunosDaTurmaConfirm.length === 0 && (
+                      <small className="text-muted-custom d-block">Esta turma não possui alunos.</small>
+                    )}
+                  </>
                 )}
               </div>
               <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => { setConfirmRemover(null); setExcluirAlunos(false) }}>Cancelar</button>
-                <button className="btn btn-danger" onClick={removerTurma}>
-                  {excluirAlunos ? 'Excluir turma e alunos' : 'Excluir turma'}
-                </button>
+                {progresso ? (
+                  <button className="btn btn-secondary" disabled>
+                    <i className="bi bi-arrow-repeat me-1"></i>Aguarde...
+                  </button>
+                ) : (
+                  <>
+                    <button className="btn btn-secondary" onClick={() => { setConfirmRemover(null); setExcluirAlunos(false) }}>Cancelar</button>
+                    <button className="btn btn-danger" onClick={removerTurma}>
+                      {excluirAlunos ? 'Excluir turma e alunos' : 'Excluir turma'}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
