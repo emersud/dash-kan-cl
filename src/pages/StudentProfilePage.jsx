@@ -5,6 +5,7 @@ import { calcularScoreEngajamento } from '../utils/engagementRadar.js'
 import { RadarGauge } from '../components/dashboard/RadarGauge.jsx'
 import { Modal } from '../components/common/Modal.jsx'
 import { Badge } from '../components/common/Badge.jsx'
+import { dicaUpload, validarArquivo } from '../services/imageService.js'
 
 function hojeISO() {
   return new Date().toISOString().slice(0, 10)
@@ -27,6 +28,10 @@ export default function StudentProfilePage() {
   const [email, setEmail] = useState(usuarioLogado?.email || '')
   const [senha, setSenha] = useState(usuarioLogado?.senha || '')
   const [avatar, setAvatar] = useState(usuarioLogado?.avatar_url || '')
+  const [arquivoFoto, setArquivoFoto] = useState(null)
+  const [fotoPreview, setFotoPreview] = useState('')
+  const [removendoFoto, setRemovendoFoto] = useState(false)
+  const [enviandoFoto, setEnviandoFoto] = useState(false)
   const [msg, setMsg] = useState('')
   const [erroEdit, setErroEdit] = useState('')
   const [recarregando, setRecarregando] = useState(false)
@@ -89,10 +94,42 @@ export default function StudentProfilePage() {
   const abrirEdicao = () => {
     setNome(usuarioLogado?.nome || '')
     setEmail(usuarioLogado?.email || '')
-    setSenha(usuarioLogado?.senha || '')
+    setSenha('')
     setAvatar(usuarioLogado?.avatar_url || '')
+    limparSelecaoFoto()
     setErroEdit('')
     setShowEdit(true)
+  }
+
+  const limparSelecaoFoto = () => {
+    if (fotoPreview) URL.revokeObjectURL(fotoPreview)
+    setArquivoFoto(null)
+    setFotoPreview('')
+    setRemovendoFoto(false)
+  }
+
+  const selecionarFoto = (e) => {
+    const arquivo = e.target.files?.[0]
+    e.target.value = ''
+    if (!arquivo) return
+    try {
+      validarArquivo(arquivo, 'foto')
+    } catch (err) {
+      setErroEdit(err?.message || 'Não foi possível usar esta imagem.')
+      return
+    }
+    setErroEdit('')
+    if (fotoPreview) URL.revokeObjectURL(fotoPreview)
+    setFotoPreview(URL.createObjectURL(arquivo))
+    setArquivoFoto(arquivo)
+    setRemovendoFoto(false)
+  }
+
+  const removerFoto = () => {
+    if (fotoPreview) URL.revokeObjectURL(fotoPreview)
+    setArquivoFoto(null)
+    setFotoPreview('')
+    setRemovendoFoto(true)
   }
 
   const salvarPerfil = async () => {
@@ -104,9 +141,36 @@ export default function StudentProfilePage() {
     const existeEmail = usuarios.some(u => u.id !== meuId && u.email === email.trim())
     if (existeEmail) { setErroEdit('Este e-mail já está em uso por outro usuário.'); return }
 
-    const dados = { nome: nome.trim(), email: email.trim(), avatar_url: avatar.trim() }
+    // Foto: primeiro sobe (WebP otimizado, nome UUID) e só então salva o perfil
+    let avatarUrl = removendoFoto ? null : (avatar || null)
+    if (arquivoFoto) {
+      setEnviandoFoto(true)
+      try {
+        avatarUrl = await ds.enviarImagem({ bucket: 'avatares', pasta: meuId, arquivo: arquivoFoto, tipo: 'foto' })
+      } catch (e) {
+        setErroEdit(e?.message || 'Não foi possível enviar a foto. Tente novamente.')
+        setEnviandoFoto(false)
+        return
+      }
+      setEnviandoFoto(false)
+    }
+
+    const dados = { nome: nome.trim(), email: email.trim(), avatar_url: avatarUrl }
     if (senha) dados.senha = senha
-    const atualizado = await ds.atualizarUsuario(meuId, dados)
+    let atualizado
+    try {
+      atualizado = await ds.atualizarUsuario(meuId, dados)
+    } catch (e) {
+      setErroEdit(e?.message || 'Erro ao salvar o perfil. Tente novamente.')
+      return
+    }
+
+    // Só apaga a imagem antiga depois que o banco já foi atualizado
+    if (avatar && avatar.includes('/avatares/') && avatar !== avatarUrl) {
+      try { await ds.removerImagem('avatares', avatar) } catch { /* melhor esforço */ }
+    }
+
+    limparSelecaoFoto()
     setUsuarioLogado({ ...usuarioLogado, ...atualizado })
     setUsuarios(await ds.listarUsuarios())
     setShowEdit(false)
@@ -319,12 +383,41 @@ export default function StudentProfilePage() {
           <input type="password" className="form-control" placeholder="Deixe em branco para manter a atual" value={senha} onChange={(e) => setSenha(e.target.value)} />
         </div>
         <div className="mb-3">
-          <label className="form-label text-muted-custom">Foto (URL)</label>
-          <input className="form-control" placeholder="https://..." value={avatar} onChange={(e) => setAvatar(e.target.value)} />
+          <label className="form-label text-muted-custom">Foto do perfil</label>
+          <div className="d-flex align-items-start gap-3">
+            <div
+              className="d-flex align-items-center justify-content-center overflow-hidden"
+              style={{ width: 72, height: 96, borderRadius: 10, backgroundColor: 'var(--color-primary)', color: '#fff', fontSize: '1.2rem', flexShrink: 0 }}
+            >
+              {(removendoFoto ? null : (fotoPreview || avatar))
+                ? <img src={fotoPreview || avatar} alt="Prévia da foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : (nome || usuarioLogado?.nome || 'U').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()}
+            </div>
+            <div className="flex-grow-1">
+              <div className="d-flex gap-2 flex-wrap mb-1">
+                <label className="btn btn-outline-primary btn-sm mb-0" style={{ cursor: 'pointer' }}>
+                  <i className="bi bi-upload me-1"></i>{avatar || fotoPreview ? 'Trocar foto' : 'Escolher foto'}
+                  <input type="file" accept="image/*" className="d-none" onChange={selecionarFoto} disabled={enviandoFoto} />
+                </label>
+                {(avatar || fotoPreview) && !removendoFoto && (
+                  <button type="button" className="btn btn-outline-danger btn-sm" onClick={removerFoto} disabled={enviandoFoto}>
+                    <i className="bi bi-trash me-1"></i>Remover
+                  </button>
+                )}
+                {removendoFoto && (
+                  <span className="badge badge-pending rounded-pill align-self-center">Foto será removida ao salvar</span>
+                )}
+              </div>
+              <small className="text-muted-custom d-block">{dicaUpload('foto')}</small>
+              {enviandoFoto && <small className="text-muted-custom d-block mt-1"><i className="bi bi-arrow-repeat me-1"></i>Otimizando e enviando...</small>}
+            </div>
+          </div>
         </div>
         <div className="d-flex justify-content-end gap-2">
-          <button className="btn btn-secondary" onClick={() => setShowEdit(false)}>Cancelar</button>
-          <button className="btn btn-primary-theme" onClick={salvarPerfil}>Salvar</button>
+          <button className="btn btn-secondary" onClick={() => { limparSelecaoFoto(); setShowEdit(false) }} disabled={enviandoFoto}>Cancelar</button>
+          <button className="btn btn-primary-theme" onClick={salvarPerfil} disabled={enviandoFoto}>
+            {enviandoFoto ? 'Enviando...' : 'Salvar'}
+          </button>
         </div>
       </Modal>
     </div>

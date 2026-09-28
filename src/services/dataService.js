@@ -1,4 +1,5 @@
 import { MOCK_DATA } from './mockData.js'
+import { otimizarImagem } from './imageService.js'
 
 const DB = {
   turmas: [...MOCK_DATA.turmas],
@@ -107,6 +108,53 @@ export async function cadastrarUsuarioPublico(dados) {
     }
   }
   return { mensagem: 'Usuário cadastrado com sucesso! Faça login com seu e-mail e senha.', user: data?.user }
+}
+
+// ============================ IMAGENS (STORAGE) ============================
+// Foto de perfil -> bucket "avatares" (500 KB, 3:4); logo de equipe -> bucket
+// "logos" (1 MB, 1:1). A imagem já chega do imageService convertida para
+// WebP, cortada na proporção e com nome UUID. Caminho: <pasta>/<uuid>.webp
+// (pasta = id do usuário ou da equipe — usada pelas policies do Storage).
+export async function enviarImagem({ bucket, pasta, arquivo, tipo = 'foto' }) {
+  const { blob, nome } = await otimizarImagem(arquivo, tipo)
+  const caminho = pasta ? `${pasta}/${nome}` : nome
+
+  if (!useSupabase) {
+    // Modo mock/demo: sem Storage — guarda como data URL.
+    return await blobParaDataUrl(blob)
+  }
+
+  const { error } = await supabaseClient.storage
+    .from(bucket)
+    .upload(caminho, blob, { contentType: blob.type, upsert: true })
+  if (error) {
+    console.warn('[enviarImagem]', bucket, error.message || error.code)
+    throw new Error('Não foi possível enviar a imagem. Tente novamente.')
+  }
+  const { data } = supabaseClient.storage.from(bucket).getPublicUrl(caminho)
+  return data?.publicUrl || ''
+}
+
+// Remove a imagem anterior quando o usuário troca ou remove a foto/logotipo.
+// Melhor esforço: URLs antigas (pravatar/dicebear/etc.) são ignoradas.
+export async function removerImagem(bucket, url) {
+  if (!url || typeof url !== 'string' || !useSupabase) return
+  const marca = `/${bucket}/`
+  const idx = url.indexOf(marca)
+  if (idx === -1) return
+  const caminho = decodeURIComponent(url.slice(idx + marca.length).split('?')[0])
+  if (!/^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(webp|png|jpg|jpeg|gif)$/i.test(caminho)) return
+  const { error } = await supabaseClient.storage.from(bucket).remove([caminho])
+  if (error) console.warn('[removerImagem]', bucket, error.message || error.code)
+}
+
+function blobParaDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const leitor = new FileReader()
+    leitor.onload = () => resolve(String(leitor.result))
+    leitor.onerror = () => reject(new Error('Não foi possível processar a imagem.'))
+    leitor.readAsDataURL(blob)
+  })
 }
 
 // ============================ TURMAS ============================
@@ -281,7 +329,36 @@ export async function criarUsuario(dados) {
 
 export async function atualizarUsuario(id, dados) {
   if (useSupabase) {
-    const { data, error } = await supabaseClient.from('usuarios').update(dados).eq('id', id).select().single()
+    // Senha e e-mail de LOGIN vivem no Supabase Auth (auth.users), não em
+    // public.usuarios (coluna 'senha' deprecada no schema 0001). A RPC
+    // alterar_acesso_usuario (migração 0010) grava auth.users.encrypted_password
+    // e auth.users.email — sem ela a troca de senha não vale no login.
+    const { senha, ...perfil } = dados
+    if (senha || perfil.email) {
+      const { error: errRpc } = await supabaseClient.rpc('alterar_acesso_usuario', {
+        p_usuario_id: id,
+        p_senha: senha || null,
+        p_email: perfil.email || null
+      })
+      if (errRpc) {
+        const msg = errRpc.message || ''
+        const faltando = /alterar_acesso_usuario/i.test(msg) || errRpc.code === 'PGRST202'
+        if (faltando) {
+          console.warn('[atualizarUsuario] RPC de acesso indisponível:', msg || errRpc.code)
+          // Sem a RPC a senha só iria para a coluna deprecada e o login
+          // continuaria com a senha antiga — não deixa "parecer salvo".
+          if (senha) {
+            throw new Error('Não foi possível alterar a senha da conta de login. Aplique a migração 0010 no Supabase (SQL Editor) e tente novamente.')
+          }
+        } else {
+          // Mostra apenas mensagens de regra de negócio; o resto vira aviso genérico.
+          const regra = /acesso negado|senha|e-mail|conta de login/i.test(msg)
+          console.warn('[atualizarUsuario] falha ao atualizar acesso:', msg || errRpc.code)
+          throw new Error(regra ? msg : 'Erro ao atualizar o usuário. Tente novamente.')
+        }
+      }
+    }
+    const { data, error } = await supabaseClient.from('usuarios').update(perfil).eq('id', id).select().single()
     if (error) throw error
     return data
   }

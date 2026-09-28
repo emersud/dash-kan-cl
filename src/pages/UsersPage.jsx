@@ -5,6 +5,7 @@ import { Modal } from '../components/common/Modal.jsx'
 import { Badge } from '../components/common/Badge.jsx'
 import { ThOrdenavel, useOrdenacao, ordenarPor } from '../components/common/TableSort.jsx'
 import { isProfessor, podeExcluirUsuario } from '../utils/permissions.js'
+import { dicaUpload, validarArquivo } from '../services/imageService.js'
 
 const PAPEIS = [
   { valor: 'gestor', label: 'Gestor' },
@@ -21,6 +22,10 @@ export default function UsersPage() {
   const [editUser, setEditUser] = useState(null)
   const [showEdit, setShowEdit] = useState(false)
   const [form, setForm] = useState({ nome: '', email: '', papel: 'aluno', senha: '', turma_id: '' })
+  const [foto, setFoto] = useState(null)
+  const [fotoPreview, setFotoPreview] = useState('')
+  const [removerFoto, setRemoverFoto] = useState(false)
+  const [enviandoFoto, setEnviandoFoto] = useState(false)
   const [erro, setErro] = useState('')
   const [confirmRemover, setConfirmRemover] = useState(null)
   const [feedback, setFeedback] = useState('')
@@ -145,6 +150,60 @@ export default function UsersPage() {
     return 'Excluir usuário'
   }
 
+  const limparSelecaoFoto = () => {
+    if (fotoPreview) URL.revokeObjectURL(fotoPreview)
+    setFoto(null)
+    setFotoPreview('')
+    setRemoverFoto(false)
+  }
+
+  const selecionarFoto = (e) => {
+    const arquivo = e.target.files?.[0]
+    e.target.value = ''
+    if (!arquivo) return
+    try {
+      validarArquivo(arquivo, 'foto')
+    } catch (err) {
+      setErro(err?.message || 'Não foi possível usar esta imagem.')
+      return
+    }
+    setErro('')
+    if (fotoPreview) URL.revokeObjectURL(fotoPreview)
+    setFotoPreview(URL.createObjectURL(arquivo))
+    setFoto(arquivo)
+    setRemoverFoto(false)
+  }
+
+  const removerFotoAgora = () => {
+    if (fotoPreview) URL.revokeObjectURL(fotoPreview)
+    setFoto(null)
+    setFotoPreview('')
+    setRemoverFoto(true)
+  }
+
+  // Foto do usuário alvo (gestor: qualquer um; professor: alunos) — permite
+  // substituir/apagar imagem imprópria. Retorna undefined quando não mexeu.
+  const resolverFoto = async () => {
+    if (foto) {
+      setEnviandoFoto(true)
+      try {
+        return await ds.enviarImagem({ bucket: 'avatares', pasta: editUser.id, arquivo: foto, tipo: 'foto' })
+      } finally {
+        setEnviandoFoto(false)
+      }
+    }
+    if (removerFoto) return null
+    return undefined
+  }
+
+  // Apaga a imagem antiga só depois que o banco já foi atualizado
+  const apagarFotoAntiga = async () => {
+    const atual = editUser?.avatar_url
+    if (atual && String(atual).includes('/avatares/')) {
+      try { await ds.removerImagem('avatares', atual) } catch { /* melhor esforço */ }
+    }
+  }
+
   const abrirEditar = (user) => {
     if (!podeEditarAlvo(user)) {
       setFeedback('Apenas o gestor pode editar perfis que não sejam de aluno. Professores só alteram a turma do aluno.')
@@ -158,6 +217,7 @@ export default function UsersPage() {
       senha: '',
       turma_id: user.turma_id || ''
     })
+    limparSelecaoFoto()
     setErro('')
     setShowEdit(true)
   }
@@ -172,9 +232,18 @@ export default function UsersPage() {
         setErro('Professores só podem alterar a turma de alunos. Peça ao gestor para editar este usuário.')
         return
       }
-      await ds.atualizarUsuario(editUser.id, { turma_id: form.turma_id || null })
       const dados = { turma_id: form.turma_id || null }
+      try {
+        const urlFoto = await resolverFoto()
+        if (urlFoto !== undefined) dados.avatar_url = urlFoto
+        await ds.atualizarUsuario(editUser.id, dados)
+        if (urlFoto !== undefined) await apagarFotoAntiga()
+      } catch (e) {
+        setErro(e?.message || 'Erro ao salvar a turma do aluno. Tente novamente.')
+        return
+      }
       setUsuarios(prev => prev.map(u => (u.id === editUser.id ? { ...u, ...dados } : u)))
+      limparSelecaoFoto()
       setShowEdit(false)
       setEditUser(null)
       setFeedback('Turma do aluno atualizada com sucesso!')
@@ -204,11 +273,20 @@ export default function UsersPage() {
     }
     if (form.senha) dados.senha = form.senha
 
-    await ds.atualizarUsuario(editUser.id, dados)
+    try {
+      const urlFoto = await resolverFoto()
+      if (urlFoto !== undefined) dados.avatar_url = urlFoto
+      await ds.atualizarUsuario(editUser.id, dados)
+      if (urlFoto !== undefined) await apagarFotoAntiga()
+    } catch (e) {
+      setErro(e?.message || 'Erro ao salvar o usuário. Tente novamente.')
+      return
+    }
     setUsuarios(prev => prev.map(u => (u.id === editUser.id ? { ...u, ...dados } : u)))
     if (usuarioLogado?.id === editUser.id) {
       setUsuarioLogado(prev => ({ ...prev, ...dados }))
     }
+    limparSelecaoFoto()
     setShowEdit(false)
     setEditUser(null)
     setFeedback('Usuário atualizado com sucesso!')
@@ -416,7 +494,7 @@ export default function UsersPage() {
       <Modal
         show={showEdit}
         key={editUser?.id || 'edit-user'}
-        onClose={() => { setShowEdit(false); setEditUser(null) }}
+        onClose={() => { limparSelecaoFoto(); setShowEdit(false); setEditUser(null) }}
         title="Editar Usuário"
       >
         {erro && <div className="alert alert-danger py-2">{erro}</div>}
@@ -462,6 +540,41 @@ export default function UsersPage() {
           </div>
         )}
 
+        {/* Foto do usuário — trocar/apagar imagem imprópria (gestor: qualquer um;
+            professor: alunos). Mesma regra do upload: WebP, nome UUID, 3:4, 500 KB. */}
+        <div className="mb-3">
+          <label className="form-label text-muted-custom">Foto do usuário</label>
+          <div className="d-flex align-items-start gap-3">
+            <div
+              className="d-flex align-items-center justify-content-center overflow-hidden"
+              style={{ width: 66, height: 88, borderRadius: 10, backgroundColor: 'var(--color-primary)', color: '#fff', fontSize: '1.1rem', flexShrink: 0 }}
+            >
+              {(removerFoto ? null : (fotoPreview || editUser?.avatar_url))
+                ? <img src={fotoPreview || editUser?.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : (editUser?.nome || editUser?.email || 'U').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()}
+            </div>
+            <div className="flex-grow-1">
+              <div className="d-flex gap-2 flex-wrap mb-1">
+                <label className="btn btn-outline-primary btn-sm mb-0" style={{ cursor: 'pointer' }}>
+                  <i className="bi bi-upload me-1"></i>{(fotoPreview || editUser?.avatar_url) ? 'Trocar foto' : 'Escolher foto'}
+                  <input type="file" accept="image/*" className="d-none" onChange={selecionarFoto} disabled={enviandoFoto} />
+                </label>
+                {(fotoPreview || editUser?.avatar_url) && !removerFoto && (
+                  <button type="button" className="btn btn-outline-danger btn-sm" onClick={removerFotoAgora} disabled={enviandoFoto}>
+                    <i className="bi bi-trash me-1"></i>Remover
+                  </button>
+                )}
+                {removerFoto && (
+                  <span className="badge badge-pending rounded-pill align-self-center">Foto será removida ao salvar</span>
+                )}
+              </div>
+              <small className="text-muted-custom d-block">{dicaUpload('foto')}</small>
+              <small className="text-muted-custom d-block mt-1"><i className="bi bi-shield-check me-1"></i>Professores e gestores podem trocar ou apagar a foto caso ela seja imprópria.</small>
+              {enviandoFoto && <small className="text-muted-custom d-block mt-1"><i className="bi bi-arrow-repeat me-1"></i>Otimizando e enviando...</small>}
+            </div>
+          </div>
+        </div>
+
         {podeMudarPapel && (
           <div className="mb-2">
             <label className="form-label text-muted-custom">Nova senha <span className="small">(opcional — em branco mantém a atual)</span></label>
@@ -469,8 +582,10 @@ export default function UsersPage() {
           </div>
         )}
         <div className="d-flex justify-content-end gap-2 mt-3">
-          <button className="btn btn-secondary" onClick={() => { setShowEdit(false); setEditUser(null) }}>Cancelar</button>
-          <button className="btn btn-primary-theme" onClick={salvarEdicao}>Salvar</button>
+          <button className="btn btn-secondary" onClick={() => { limparSelecaoFoto(); setShowEdit(false); setEditUser(null) }} disabled={enviandoFoto}>Cancelar</button>
+          <button className="btn btn-primary-theme" onClick={salvarEdicao} disabled={enviandoFoto}>
+            {enviandoFoto ? 'Enviando...' : 'Salvar'}
+          </button>
         </div>
       </Modal>
 

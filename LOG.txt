@@ -1676,3 +1676,246 @@ Build: SUCESSO (vite, 175 modulos).
   no SQL Editor (a execução anterior não deixou nada gravado); o build do app
   não é afetado (npm run build segue SUCESSO, 176 módulos).
 --------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-09-28] TROCA DE SENHA NÃO VALIA NO LOGIN (RPC 0010) ✔
+--------------------------------------------------------------------------------
+  SOLICITAÇÃO: o gestor passou a poder editar o usuário aluno, mas ao trocar a
+  senha do aluno (ou do professor) não era possível entrar na conta com a senha
+  nova.
+
+  DIAGNÓSTICO: o login usa o Supabase Auth (signInWithPassword ->
+  auth.users.encrypted_password), enquanto a edição gravava a senha só em
+  public.usuarios.senha — coluna que o próprio schema 0001 marca como
+  deprecada. Resultado: a tela mostrava "salvo" e o Auth continuava com a senha
+  antiga. O mesmo valia para a troca de E-MAIL de login (auth.users.email).
+
+  ALTERAÇÕES POR ARQUIVO:
+
+  1) supabase/migrations/0010_alterar_acesso_usuario.sql (NOVA - aplicar no SQL Editor)
+     * Nova RPC SECURITY DEFINER alterar_acesso_usuario(p_usuario_id, p_senha
+       default null, p_email default null):
+       - senha -> auth.users.encrypted_password (bcrypt: extensions.crypt com
+         gen_salt('bf')) e espelho em public.usuarios.senha (paridade com o
+         mock);
+       - e-mail -> auth.users.email + auth.identities.identity_data do provider
+         'email', com conferência de unicidade nos dois lados; e-mail marcado
+         como confirmado (admin definindo o acesso);
+       - valida mínimo de 6 caracteres e levanta mensagem de regra (as
+         mensagens de negócio chegam à tela; o resto vira aviso genérico);
+       - revoga sessions/refresh_tokens da conta quando OUTRO a altera (não
+         quando é a própria);
+       - permissões: gestor altera qualquer conta; professor só alunos (mesma
+         regra da 0008); qualquer autenticado altera a própria; SQL Editor
+         (postgres, sem auth.uid()) roda livremente;
+       - grant apenas para authenticated (revogado de public/anon).
+
+  2) src/services/dataService.js — atualizarUsuario()
+     * No modo Supabase, senha/e-mail são extraídos do payload e enviados à RPC
+       ANTES da atualização do perfil (a senha não trafega mais por
+       public.usuarios). Se a RPC não existir (PGRST202 / nome não encontrado)
+       e houver senha nova, lança erro claro em vez de deixar "parecer salvo";
+       regras de negócio são repassadas à tela, o resto vira mensagem genérica.
+
+  3) src/pages/UsersPage.jsx
+     * salvarEdicao com try/catch nas duas trilhas (turma do aluno e edição do
+       gestor): o erro aparece no modal (antes virava rejeição silenciosa e o
+       modal fechava como se tivesse salvo).
+
+  4) src/pages/StudentProfilePage.jsx
+     * salvarPerfil com try/catch (erro no modal de edição);
+     * o campo de senha deixa de ser pré-preenchido com a senha atual (antes
+       trafegava/exibia a senha do usuário no input e reenviava ela a cada
+       salvamento) — agora começa em branco ("deixe em branco para manter").
+
+  5) ADMIN/DEPLOY.md — item 10 na lista de migrações a aplicar.
+
+  VALIDAÇÃO: npm run build - SUCESSO (176 módulos transformados); RPC
+  alterar_acesso_usuario confirmada na base (chamada via PostgREST retornou 200).
+  -> COMPORTAMENTO: a troca de senha pela tela de gestor (ou pelo perfil) passa
+     a valer no login; sem a migração 0010 aplicada o app mostra erro
+     explicando que a senha da conta de login não pôde ser alterada.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-09-28] LOGIN DOS ALUNOS IMPORTADOS COM 500 (MIGRAÇÃO 0011) ✔
+--------------------------------------------------------------------------------
+  PROBLEMA: mesmo com a senha correta, os alunos criados pela importação de
+  planilha não conseguiam entrar.
+
+  DIAGNÓSTICO (chamadas reais à API do projeto com a anon key):
+    * carlos@escola.com (criado pelo 0002_seed)          -> 200 OK
+    * bianca.ramos@escola.com e todos os importados
+      (bruno.mendes, carolina.rocha, diego.lima,
+       fernanda.castro, jessica.duarte, kaique.farias,
+       henrique.moraes) senha ERRADA qualquer            -> 500
+      "Database error querying schema" (unexpected_failure)
+    * contas inexistentes                                -> 400 invalid_credentials
+  Ou seja, o erro não era de senha: o GoTrue quebia ANTES de comparar, porque
+  as contas da importação têm colunas de token = NULL em auth.users. O
+  0002_seed já normalizava NULL -> '' ("Blindagem 2") e o ADMIN/supabase/
+  hotfix_login3.sql documenta exatamente esse erro, mas a RPC importar_aluno
+  (0003) nunca teve a normalização.
+
+  ALTERAÇÕES POR ARQUIVO:
+
+  1) supabase/migrations/0011_login_alunos_importados.sql (NOVA - aplicar no SQL Editor)
+     * Bloco DO idempotente: normaliza NULL -> '' em TODAS as contas de
+       auth.users para confirmation_token, recovery_token, email_change,
+       email_change_token_new, email_change_token_current, phone_change,
+       phone_change_token e reauthentication_token (cada atualização é
+       protegida por information_schema.columns, seguro em qualquer versão;
+       NOTICE com a contagem de linhas por coluna).
+       Observação: a coluna phone NÃO é tocada (índice único (instance_id,
+       phone) — e NULL em phone não quebra o login).
+     * public.importar_aluno recriada inserindo '' nesses 8 campos — alunos
+       importados daqui pra frente nascem prontos para o login.
+     * Select final de verificação: contas_com_token_null deve ser 0.
+
+  2) ADMIN/DEPLOY.md — item 11 na lista de migrações a aplicar.
+
+  VALIDAÇÃO (após aplicar a 0011, sons reais à API):
+    * senha errada -> 400 invalid_credentials (era 500) em bianca, bruno.mendes
+      e carolina.rocha;
+    * bianca.ramos@escola.com com "Mudar123" -> 200 OK (token emitido).
+  -> COMPORTAMENTO: alunos importados voltam a logar. Como a senha da Bianca
+     continuou "Mudar123", a troca feita antes tinha sido gravada apenas em
+     public.usuarios (a tela local já chama a RPC 0010 — refazer a troca pela
+     tela de gestor e entrar com a senha nova).
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-09-28] UPLOAD DE FOTO DE PERFIL E DE EQUIPE (WEBP + UUID + LIMITES) ✔
+--------------------------------------------------------------------------------
+  SOLICITAÇÃO: o aluno não cola mais uma URL — ele envia uma imagem do próprio
+  computador (serve para o perfil dele e para a imagem/logo da equipe); professores
+  e gestores podem trocar ou apagar a foto caso ela seja imprópria; as imagens
+  passam por um algoritmo de otimização. Regras: converter tudo para WebP,
+  renomear com UUID, limite de upload FOTO 500 KB · LOGO 1 MB, proporção 3:4
+  (usuários) e 1:1 (equipes).
+
+  PIPELINE DE OTIMIZAÇÃO (novo, roda no navegador antes do upload):
+    1) valida tipo (JPG/PNG/WebP/...) e tamanho do arquivo escolhido (máx. 10 MB
+       — guarda contra arquivo gigante; o limite real de 500 KB/1 MB é do upload);
+    2) decodifica com createImageBitmap (respeitando EXIF/orientação) com
+       fallback para <img>;
+    3) corte centralizado "cover" na proporção de destino — 3:4 para foto,
+       1:1 para logo — sem ampliar além do arquivo original;
+    4) redimensiona para a caixa máxima (720x960 foto · 720x720 logo);
+    5) exporta em WebP com varredura de qualidade (0,92 → 0,4) e, se ainda não
+       couber, reduz a escala em 20% por rodada (até 5 rodadas) até bater no
+       limite de KB; navegador sem suporte a WebP grava o formato nativo e a
+       extensão/content-type acompanham (aviso no console);
+    6) renomeia para <uuid>.webp — nome/EXIF originais nunca são enviados.
+
+  ALTERAÇÕES POR ARQUIVO:
+
+  1) src/services/imageService.js (NOVO)
+     * LIMITES: foto {maxKB 500, 720x960, 3:4, bucket avatares} · logo
+       {maxKB 1024, 720x720, 1:1, bucket logos}; MAX_ORIGINAL_KB 10 MB.
+     * validarArquivo (tipo/tamanho), dicaUpload (texto da interface),
+       formatarKB/formatarBytes e otimizarImagem(arquivo, tipo) — todo o
+       pipeline acima, devolvendo { blob, nome, contentType, largura, altura,
+       bytes }.
+
+  2) src/services/dataService.js
+     * enviarImagem({ bucket, pasta, arquivo, tipo }): otimiza e envia para
+       <pasta>/<uuid>.webp (content-type do blob, upsert) e devolve a URL
+       pública; sem Supabase (modo mock) guarda como data URL.
+     * removerImagem(bucket, url): apaga a imagem antiga quando o usuário
+       troca/apaga (melhor esforço — ignora URLs antigas de terceiros e caminhos
+       que não batem com <uuid>/<uuid>.webp).
+
+  3) src/pages/StudentProfilePage.jsx
+     * O campo "Foto (URL)" virou upload: prévia 3:4, botões "Escolher/Trocar
+       foto" e "Remover" (marca "será removida ao salvar"), dica de formato e
+       limite, estado "Otimizando e enviando..." e botões desabilitados durante
+       o envio; a foto só sobe ao Salvar (evita arquivo órfão ao cancelar) e a
+       imagem anterior do bucket é apagada.
+
+  4) src/pages/UsersPage.jsx
+     * Mesmo bloco de foto no modal "Editar Usuário" — para GESTOR (qualquer
+       usuário) e para PROFESSOR (alunos), liberando a moderação de imagem
+       imprópria (trocar ou apagar); texto "Professores e gestores podem trocar
+       ou apagar a foto caso ela seja imprópria". Envia para
+       avatares/<id-do-alvo>/ e apaga a anterior; os dois caminhos de salvamento
+       (turma do professor e edição do gestor) passaram a incluir avatar_url.
+
+  5) src/components/teams/TeamBuilderModal.jsx
+     * Os dois campos "Logo (URL)" (edição normal e edição restrita do aluno)
+       viraram upload 1:1 com prévia sobre a cor da equipe, "Trocar logo" e
+       "Remover"; sobe para logos/<id-da-equipe> (equipe nova: pasta de quem
+       criou) e apaga a anterior; ao remover, logo_url fica nula (a equipe volta
+       a exibir o ícone); sem logo novo mantém o identicon padrão de antes.
+     * salvar com try/catch (falha de upload mostra o erro em vez de travar).
+
+  6) supabase/migrations/0012_storage_fotos_perfil_equipes.sql (NOVA - aplicar no SQL Editor)
+     * Buckets públicos: "avatares" (file_size_limit 512000 = 500 KB) e "logos"
+       (1048576 = 1 MB), allowed_mime_types image/webp|png|jpeg; criação via SQL
+       com fallback por NOTICE (se der permissão, crie no Dashboard > Storage).
+     * Policies em storage.objects:
+       - leitura pública nos dois buckets (exibição em <img>);
+       - INSERT/UPDATE/DELETE para authenticated restritos à pasta:
+         avatares -> pasta = auth.uid() OU is_professor() (moderação);
+         logos -> is_professor() OU pasta = auth.uid() OU membro da equipe
+         (aluno só mexe na pasta da própria equipe);
+       - extensão .webp/.png/.jpg (o app envia sempre .webp).
+
+  7) ADMIN/DEPLOY.md — item 12 na lista de migrações a aplicar.
+
+  VALIDAÇÃO: npm run build - SUCESSO (177 módulos transformados); migração 0012
+  APLICADA e testada na API real (uploads de teste — arquivos removidos depois):
+    1) professor -> avatares/<próprio id>            -> 200
+    2) aluno     -> avatares/<próprio id>             -> 200
+    3) aluno     -> avatares/<id de outro usuário>    -> 400 (policy recusou)
+    4) professor -> logos/<qualquer equipe>           -> 200
+    5) leitura pública da URL da imagem               -> 200 (image/png)
+    6) arquivo de 620 KB no bucket de 500 KB          -> 413 EntityTooLarge
+  -> COMPORTAMENTO: aluno/gestor escolhe uma foto do computador e ela aparece
+     cortada na proporção certa, convertida para WebP e com nome UUID; imagem
+     grande demais é recusada com mensagem; trocar/apagar foto pela tela de
+     gestão funciona (professor só em alunos) e a imagem antiga sai do Storage.
+--------------------------------------------------------------------------------
+
+================================================================================
+ [2026-09-28] TELA EM BRANCO APÓS O LOGIN — formatarKB DERRUBANDO O RENDER
+================================================================================
+  SINTOMA: `npm run dev` + login => tela branca, nenhuma página abria. Console:
+
+    imageService.js:43 Uncaught TypeError: (kb / 1024).replace is not a function
+      at formatarKB (imageService.js:43:38)
+      at dicaUpload (imageService.js:54:36)
+      at StudentProfilePage (StudentProfilePage.jsx:407:61)
+    The above error occurred in the <StudentProfilePage> component.
+
+  CAUSA: em formatarKB(), quando kb >= 1024 o código fazia
+  `(kb / 1024).replace('.', ',')` — o resultado é NUMBER e number não tem
+  .replace(). dicaUpload() roda dentro do RENDER (linha 407): a exceção
+  derrubava a árvore React inteira (não há error boundary) => tela branca.
+  Por isso só aparecia DEPOIS do login (a tela de login não usa dicaUpload).
+
+  CORREÇÃO 1 — src/services/imageService.js (formatarKB): valida o número
+  (Number.isFinite), arredonda KB inteiro e usa toFixed/String() antes do
+  replace. Saídas: "500 KB" (foto), "1 MB" (logo), "10 MB" (arquivo escolhido).
+
+  CORREÇÃO 2 — apagar foto deixava o arquivo ORFÃO no Storage (o delete
+  acontecia antes do save, ou não acontecia no caminho de remoção). Agora:
+    * StudentProfilePage.salvarPerfil -> apaga a imagem antiga só DEPOIS que
+      o banco foi atualizado (cobre troca e remoção);
+    * UsersPage.resolverFoto -> só sobe a nova; apagarFotoAntiga() roda após
+      ds.atualizarUsuario() nos dois caminhos (turma do professor e edição do
+      gestor); falha no delete é ignorada (melhor esforço).
+  A ordem antiga (apagar antes de salvar) também saiu: se o save falhasse, o
+  perfil ficava apontando para um arquivo já removido.
+
+  VALIDAÇÃO — npm run build: SUCESSO (3.88s). Teste automatizado em Chrome
+  headless (Puppeteer) contra http://localhost:5173 com pageerror/console.error
+  capturados:
+    login professor (carlos) + 9 telas do menu ............ 0 erros
+    modal "Nova Equipe" (upload de logo, dica + input) ..... abriu, 0 erros
+    modal "Editar Usuário" (upload de foto, dica + input) .. abriu, 0 erros
+    login aluna (bianca) -> Perfil ......................... renderizou, 0 erros
+    upload de foto 300x400 -> WebP com UUID no Storage ..... OK
+    remover foto -> perfil sem avatar e pasta do Storage ... VAZIA (sem órfão)
+  => NENHUM ERRO DE CONSOLE/JS em todo o fluxo pós-login.
+--------------------------------------------------------------------------------
