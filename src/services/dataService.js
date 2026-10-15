@@ -1,5 +1,6 @@
 import { MOCK_DATA } from './mockData.js'
 import { otimizarImagem } from './imageService.js'
+import { CRITERIOS, calcularMedias } from '../utils/peerEvaluation.js'
 
 const DB = {
   turmas: [...MOCK_DATA.turmas],
@@ -8,11 +9,21 @@ const DB = {
   projetos: JSON.parse(JSON.stringify(MOCK_DATA.projetos)),
   tarefas: JSON.parse(JSON.stringify(MOCK_DATA.tarefas)),
   historico_atividades: [...MOCK_DATA.historico_atividades],
-  daily_registers: [...MOCK_DATA.daily_registers]
+  daily_registers: [...MOCK_DATA.daily_registers],
+  avaliacoes_periodos: JSON.parse(JSON.stringify(MOCK_DATA.avaliacoes_periodos)),
+  peer_avaliacoes: JSON.parse(JSON.stringify(MOCK_DATA.peer_avaliacoes))
 }
 
 let useSupabase = false
 let supabaseClient = null
+
+// Sessão do usuário no modo mock — espelha o RLS do Supabase nas consultas
+// que o aluno não deveria ver inteiras (ex.: avaliações por pares).
+let usuarioSessao = null
+function definirSessao(usuario) {
+  usuarioSessao = usuario || null
+}
+
 
 export function setSupabase(client) {
   supabaseClient = client
@@ -46,6 +57,7 @@ export async function autenticar(email, senha) {
   }
   const usuario = DB.usuarios.find(u => u.email === email && u.senha === senha)
   if (!usuario) throw new Error('E-mail ou senha inválidos')
+  definirSessao(usuario)
   return { ...usuario }
 }
 
@@ -71,11 +83,17 @@ export async function autenticarSupabase(email, senha) {
     .eq('email', email)
     .maybeSingle()
   if (errPerfil) throw new Error('Erro ao carregar o perfil. Tente novamente.')
-  if (perfil) return perfil
-  return { id: data.user.id, email, nome: data.user.user_metadata?.nome || email, papel: 'aluno' }
+  if (perfil) {
+    definirSessao(perfil)
+    return perfil
+  }
+  const fallback = { id: data.user.id, email, nome: data.user.user_metadata?.nome || email, papel: 'aluno' }
+  definirSessao(fallback)
+  return fallback
 }
 
 export async function sairSupabase() {
+  definirSessao(null)
   if (supabaseClient) await supabaseClient.auth.signOut()
 }
 
@@ -404,6 +422,7 @@ export async function removerUsuarioCompleto(id) {
   }
   DB.daily_registers = DB.daily_registers.filter(d => d.aluno_id !== id)
   DB.historico_atividades = DB.historico_atividades.filter(h => h.usuario_id !== id)
+  DB.peer_avaliacoes = DB.peer_avaliacoes.filter(a => a.avaliador_id !== id && a.avaliado_id !== id)
   DB.equipes = DB.equipes.map(e => ({
     ...e,
     membros: (e.membros || []).filter(m => m.aluno_id !== id)
@@ -499,6 +518,7 @@ export async function removerEquipe(id, { onProgresso } = {}) {
   DB.tarefas = DB.tarefas.map(t => (t.equipe_id === id ? { ...t, equipe_id: null } : t))
   notificar({ etapa: 'vinculos', atual: 2, total: 3 })
   DB.daily_registers = DB.daily_registers.filter(d => d.equipe_id !== id)
+  DB.peer_avaliacoes = DB.peer_avaliacoes.filter(a => a.equipe_id !== id)
   notificar({ etapa: 'vinculos', atual: 3, total: 3 })
   notificar({ etapa: 'concluido', atual: 3, total: 3 })
 }
@@ -738,6 +758,247 @@ export async function removerDailyRegister(id) {
   DB.daily_registers = DB.daily_registers.filter(d => d.id !== id)
 }
 
+// ============================ AVALIAÇÃO POR PARES ============================
+// Período/Sprint + avaliações entre colegas do mesmo grupo (Peer Evaluation).
+// No modo Supabase o servidor valida as regras (trigger da migração 0013):
+// autoavaliação, duplicidade, período aberto, notas 1–5 e composição da equipe.
+// No modo mock as mesmas regras rodam em validarRegrasAvaliacao().
+// Privacidade: o aluno só lê as linhas que escreveu (RLS) e as MÉDIAS recebidas
+// (RPC peer_resultados); o professor/gestor lê tudo.
+
+function ehGestor(usuario) {
+  return usuario?.papel === 'professor' || usuario?.papel === 'gestor'
+}
+
+export async function listarPeriodosAvaliacao() {
+  if (useSupabase) {
+    const { data, error } = await supabaseClient
+      .from('avaliacoes_periodos')
+      .select('*')
+      .order('data_inicio', { ascending: true, nullsFirst: false })
+    if (error) throw error
+    return data
+  }
+  return JSON.parse(JSON.stringify(DB.avaliacoes_periodos))
+    .sort((a, b) => String(a.data_inicio || '').localeCompare(String(b.data_inicio || '')))
+}
+
+export async function criarPeriodoAvaliacao(dados) {
+  if (useSupabase) {
+    const { data, error } = await supabaseClient
+      .from('avaliacoes_periodos')
+      .insert(dados)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  }
+  const novo = { id: genId(), estado: 'aberto', ...dados }
+  DB.avaliacoes_periodos.push(novo)
+  return novo
+}
+
+export async function atualizarPeriodoAvaliacao(id, dados) {
+  if (useSupabase) {
+    const { data, error } = await supabaseClient
+      .from('avaliacoes_periodos')
+      .update(dados)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  }
+  const idx = DB.avaliacoes_periodos.findIndex(p => p.id === id)
+  if (idx !== -1) DB.avaliacoes_periodos[idx] = { ...DB.avaliacoes_periodos[idx], ...dados }
+  return DB.avaliacoes_periodos[idx]
+}
+
+// Remoção de período (somente professor/gestor; RLS/INSERT-UPDATE impedem o resto).
+export async function removerPeriodoAvaliacao(id) {
+  if (useSupabase) {
+    const { error } = await supabaseClient.from('avaliacoes_periodos').delete().eq('id', id)
+    if (error) throw error
+    return
+  }
+  DB.avaliacoes_periodos = DB.avaliacoes_periodos.filter(p => p.id !== id)
+  DB.peer_avaliacoes = DB.peer_avaliacoes.filter(a => a.periodo_id !== id)
+}
+
+export async function listarPeerAvaliacoes() {
+  if (useSupabase) {
+    // RLS: professor/gestor vê todas; aluno vê apenas as que ele mesmo gravou.
+    const { data, error } = await supabaseClient
+      .from('peer_avaliacoes')
+      .select('*')
+      .order('created_at', { ascending: true })
+    if (error) throw error
+    return data || []
+  }
+  if (!usuarioSessao) return []
+  const todas = JSON.parse(JSON.stringify(DB.peer_avaliacoes))
+  if (ehGestor(usuarioSessao)) return todas
+  return todas.filter(a => a.avaliador_id === usuarioSessao.id)
+}
+
+// Regras de negócio no "servidor" do modo mock (espelham o trigger do banco).
+function validarRegrasAvaliacao(a) {
+  const periodo = DB.avaliacoes_periodos.find(p => p.id === a.periodo_id)
+  if (!periodo) return 'Período de avaliação não encontrado.'
+  if (periodo.estado !== 'aberto') return 'O período foi encerrado e não aceita alterações.'
+  if (a.avaliador_id === a.avaliado_id) return 'Você não pode avaliar a si mesmo.'
+  const avaliador = DB.usuarios.find(u => u.id === a.avaliador_id)
+  const avaliado = DB.usuarios.find(u => u.id === a.avaliado_id)
+  if (avaliador?.papel !== 'aluno' || avaliado?.papel !== 'aluno') {
+    return 'Apenas alunos podem participar da avaliação por pares.'
+  }
+  const equipe = DB.equipes.find(e => e.id === a.equipe_id)
+  if (!equipe) return 'Equipe não encontrada.'
+  const membros = new Set((equipe.membros || []).map(m => m.aluno_id))
+  if (!membros.has(a.avaliador_id) || !membros.has(a.avaliado_id)) {
+    return 'Avaliador e avaliado precisam fazer parte da mesma equipe.'
+  }
+  for (const criterio of CRITERIOS) {
+    const nota = a[criterio.chave]
+    if (nota == null) continue
+    if (!Number.isInteger(nota) || nota < 1 || nota > 5) {
+      return `Nota inválida em "${criterio.nome}". Use valores inteiros de 1 a 5.`
+    }
+  }
+  if (a.estado === 'enviada') {
+    const faltando = CRITERIOS.filter(c => a[c.chave] == null).map(c => c.nome)
+    if (faltando.length) {
+      return `Informe uma nota de 1 a 5 em todos os critérios antes de enviar. Faltando: ${faltando.join(', ')}.`
+    }
+  }
+  return null
+}
+
+// Espelha a RLS do modo Supabase: só o próprio aluno grava em seu nome e só
+// exclui enquanto o período estiver aberto; professor/gestor modera.
+function validarPropriaAvaliacao(avaliacao, { excluindo = false } = {}) {
+  if (!usuarioSessao || ehGestor(usuarioSessao)) return null
+  if (avaliacao.avaliador_id !== usuarioSessao.id) {
+    return 'Você só pode registrar avaliações em seu próprio nome.'
+  }
+  if (excluindo) {
+    const periodo = DB.avaliacoes_periodos.find(p => p.id === avaliacao.periodo_id)
+    if (periodo && periodo.estado !== 'aberto') {
+      return 'O período foi encerrado e não aceita alterações.'
+    }
+  }
+  return null
+}
+
+// Salva (ou atualiza) a avaliação de um par (avaliador, avaliado, período).
+// enviar=true grava estado 'enviada' (entra nas médias); false = 'rascunho'.
+export async function salvarPeerAvaliacao(dados, { enviar = false } = {}) {
+  const payload = { ...dados, estado: enviar ? 'enviada' : 'rascunho' }
+
+  if (useSupabase) {
+    const { data, error } = await supabaseClient
+      .from('peer_avaliacoes')
+      .upsert(payload, { onConflict: 'periodo_id,avaliador_id,avaliado_id' })
+      .select()
+      .single()
+    if (error) {
+      const msg = error.message || ''
+      const regra = /avalia|per[ií]odo|equipe|nota|si mesmo|alunos/i.test(msg)
+      console.warn('[salvarPeerAvaliacao] falha:', msg || error.code)
+      throw new Error(regra ? msg : 'Não foi possível salvar a avaliação. Tente novamente.')
+    }
+    return data
+  }
+
+  const erroRegra = validarPropriaAvaliacao(payload)
+  if (erroRegra) throw new Error(erroRegra)
+  const erro = validarRegrasAvaliacao(payload)
+  if (erro) throw new Error(erro)
+  const existente = DB.peer_avaliacoes.find(a =>
+    a.periodo_id === payload.periodo_id &&
+    a.avaliador_id === payload.avaliador_id &&
+    a.avaliado_id === payload.avaliado_id
+  )
+  if (existente) {
+    Object.assign(existente, payload, { updated_at: new Date().toISOString() })
+    return { ...existente }
+  }
+  const nova = {
+    id: genId(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    ...payload
+  }
+  DB.peer_avaliacoes.push(nova)
+  return { ...nova }
+}
+
+// Exclusão: o próprio avaliador (enquanto o período estiver aberto) ou o
+// professor/gestor (moderação de comentário impróprio). RLS impõe a mesma regra.
+export async function removerPeerAvaliacao(id) {
+  if (useSupabase) {
+    const { error } = await supabaseClient.from('peer_avaliacoes').delete().eq('id', id)
+    if (error) throw error
+    return
+  }
+  const alvo = DB.peer_avaliacoes.find(a => a.id === id)
+  if (!alvo) return
+  const erro = validarPropriaAvaliacao(alvo, { excluindo: true })
+  if (erro) throw new Error(erro)
+  DB.peer_avaliacoes = DB.peer_avaliacoes.filter(a => a.id !== id)
+}
+
+/**
+ * Médias recebidas por aluno e período (agrupadas por avaliado).
+ * Supabase: RPC peer_resultados (migração 0013) — o servidor calcula e já
+ * aplica a autorização (professor: todos; aluno: apenas ele mesmo).
+ * Mock: mesma agregação aqui, para não duplicar fórmula na interface.
+ */
+export async function listarPeerResultados(periodoId = null) {
+  if (useSupabase) {
+    const { data, error } = await supabaseClient.rpc('peer_resultados', {
+      p_periodo_id: periodoId || null
+    })
+    if (error) {
+      const faltando = /peer_resultados/i.test(error.message || '') || error.code === 'PGRST202'
+      console.warn('[listarPeerResultados] indisponível:', error.message || error.code)
+      throw new Error(faltando
+        ? 'Serviço indisponível no momento. Tente novamente mais tarde.'
+        : 'Não foi possível carregar os resultados. Tente novamente.')
+    }
+    return Array.isArray(data) ? data : []
+  }
+
+  const enviadas = DB.peer_avaliacoes.filter(a => a.estado === 'enviada')
+  const visiveis = !usuarioSessao || ehGestor(usuarioSessao)
+    ? enviadas
+    : enviadas.filter(a => a.avaliado_id === usuarioSessao.id)
+  const filtradas = periodoId ? visiveis.filter(a => a.periodo_id === periodoId) : visiveis
+
+  const grupos = new Map()
+  for (const avaliacao of filtradas) {
+    const chave = `${avaliacao.periodo_id}|${avaliacao.avaliado_id}`
+    if (!grupos.has(chave)) grupos.set(chave, [])
+    grupos.get(chave).push(avaliacao)
+  }
+  return [...grupos.values()].map(linhas => {
+    const medias = calcularMedias(linhas)
+    const avaliado = DB.usuarios.find(u => u.id === linhas[0].avaliado_id)
+    const linha = {
+      periodo_id: linhas[0].periodo_id,
+      avaliado_id: linhas[0].avaliado_id,
+      equipe_id: linhas[0].equipe_id,
+      avaliado_nome: avaliado?.nome || '',
+      total_avaliacoes: linhas.length
+    }
+    for (const criterio of CRITERIOS) {
+      linha[criterio.chave] = medias[criterio.chave].media
+      linha[`${criterio.chave}_n`] = medias[criterio.chave].qtd
+    }
+    return linha
+  })
+}
+
 // ============================ RESET ============================
 export function resetMockData() {
   DB.turmas = [...MOCK_DATA.turmas]
@@ -747,6 +1008,8 @@ export function resetMockData() {
   DB.tarefas = JSON.parse(JSON.stringify(MOCK_DATA.tarefas))
   DB.historico_atividades = [...MOCK_DATA.historico_atividades]
   DB.daily_registers = [...MOCK_DATA.daily_registers]
+  DB.avaliacoes_periodos = JSON.parse(JSON.stringify(MOCK_DATA.avaliacoes_periodos))
+  DB.peer_avaliacoes = JSON.parse(JSON.stringify(MOCK_DATA.peer_avaliacoes))
 }
 
 export function exportMockData() {
@@ -757,7 +1020,9 @@ export function exportMockData() {
     projetos: DB.projetos,
     tarefas: DB.tarefas,
     historico_atividades: DB.historico_atividades,
-    daily_registers: DB.daily_registers
+    daily_registers: DB.daily_registers,
+    avaliacoes_periodos: DB.avaliacoes_periodos,
+    peer_avaliacoes: DB.peer_avaliacoes
   }, null, 2)
 }
 
@@ -770,4 +1035,6 @@ export function importMockData(json) {
   if (data.tarefas) DB.tarefas = data.tarefas
   if (data.historico_atividades) DB.historico_atividades = data.historico_atividades
   if (data.daily_registers) DB.daily_registers = data.daily_registers
+  if (data.avaliacoes_periodos) DB.avaliacoes_periodos = data.avaliacoes_periodos
+  if (data.peer_avaliacoes) DB.peer_avaliacoes = data.peer_avaliacoes
 }

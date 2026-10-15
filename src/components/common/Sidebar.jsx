@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { key: 'kanban', label: 'Kanban', icon: 'bi-kanban', badgePendencias: true },
   { key: 'radar', label: 'Radar de Engajamento', icon: 'bi-radar', onlyProfessor: true },
   { key: 'daily', label: 'Daily Register', icon: 'bi-rocket-takeoff' },
+  { key: 'peers', label: 'Avaliação por Pares', icon: 'bi-hand-thumbs-up' },
   { key: 'users', label: 'Usuários', icon: 'bi-person-gear', onlyProfessor: true }
 ]
 

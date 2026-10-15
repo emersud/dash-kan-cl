@@ -11,6 +11,7 @@ import RadarPage from './pages/RadarPage.jsx'
 import DailyRegisterPage from './pages/DailyRegisterPage.jsx'
 import StudentProfilePage from './pages/StudentProfilePage.jsx'
 import UsersPage from './pages/UsersPage.jsx'
+import PeerEvaluationPage from './pages/PeerEvaluationPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import * as ds from './services/dataService.js'
 
@@ -24,7 +25,8 @@ const PAGES = {
   radar: RadarPage,
   daily: DailyRegisterPage,
   profile: StudentProfilePage,
-  users: UsersPage
+  users: UsersPage,
+  peers: PeerEvaluationPage
 }
 
 function Shell() {

@@ -244,5 +244,34 @@ export const MOCK_DATA = {
     { id: 'd3', equipe_id: 'eq1', aluno_id: 'u2', data_checkin: '2026-09-15', o_que_fez: 'Configurei as rotas do React.', licao_aprendida: 'Mocks ajudam no desenvolvimento independente do back.', impedimento: 'Aguardando design system.' },
     { id: 'd4', equipe_id: 'eq1', aluno_id: 'u4', data_checkin: '2026-09-15', o_que_fez: 'Desenvolvi a tela de login.', licao_aprendida: 'Importante manter checklists pequenas.', impedimento: '' },
     { id: 'd5', equipe_id: 'eq2', aluno_id: 'u5', data_checkin: '2026-09-14', o_que_fez: 'Criei o design system da equipe.', licao_aprendida: 'Tokens de cor facilitam o tema.', impedimento: '' }
+  ],
+  avaliacoes_periodos: [
+    { id: 'ap1', nome: 'Sprint 1', data_inicio: '2026-08-03', data_final: '2026-08-28', estado: 'encerrado' },
+    { id: 'ap2', nome: 'Sprint 2', data_inicio: '2026-09-01', data_final: '2026-10-31', estado: 'aberto' },
+    { id: 'ap3', nome: 'Sprint 3', data_inicio: '2026-11-02', data_final: '2026-11-27', estado: 'rascunho' }
+  ],
+  // Avaliações por pares (Peer Evaluation). Cada linha guarda a EQUIPE válida
+  // no momento do envio (foto da composição), conforme Peer_Evaluation.md.
+  // 'enviada' entra nas médias; 'rascunho' fica de fora até ser enviada.
+  peer_avaliacoes: [
+    // --- Sprint 2 (aberto) — equipe Alpha Tech (u2, u4, u6) ---
+    { id: 'pa01', periodo_id: 'ap2', equipe_id: 'eq1', avaliador_id: 'u2', avaliado_id: 'u4', colaboracao: 4, responsabilidade: 4, comunicacao: 5, qualidade_entregas: 4, autonomia: 4, comentario: 'Sempre responde rápido e revisa o código dos outros.', estado: 'enviada' },
+    { id: 'pa02', periodo_id: 'ap2', equipe_id: 'eq1', avaliador_id: 'u2', avaliado_id: 'u6', colaboracao: 5, responsabilidade: 4, comunicacao: 4, qualidade_entregas: 5, autonomia: 4, comentario: '', estado: 'enviada' },
+    { id: 'pa03', periodo_id: 'ap2', equipe_id: 'eq1', avaliador_id: 'u4', avaliado_id: 'u2', colaboracao: 5, responsabilidade: 5, comunicacao: 4, qualidade_entregas: 5, autonomia: 5, comentario: 'Líder atencioso, divide bem as tarefas.', estado: 'enviada' },
+    { id: 'pa04', periodo_id: 'ap2', equipe_id: 'eq1', avaliador_id: 'u4', avaliado_id: 'u6', colaboracao: 4, responsabilidade: null, comunicacao: 3, qualidade_entregas: null, autonomia: null, comentario: 'Rascunho — preciso observar mais os testes.', estado: 'rascunho' },
+    { id: 'pa05', periodo_id: 'ap2', equipe_id: 'eq1', avaliador_id: 'u6', avaliado_id: 'u2', colaboracao: 4, responsabilidade: 5, comunicacao: 4, qualidade_entregas: 4, autonomia: 5, comentario: '', estado: 'enviada' },
+    { id: 'pa06', periodo_id: 'ap2', equipe_id: 'eq1', avaliador_id: 'u6', avaliado_id: 'u4', colaboracao: 4, responsabilidade: 4, comunicacao: 4, qualidade_entregas: 4, autonomia: 3, comentario: 'Poderia documentar mais as decisões de front-end.', estado: 'enviada' },
+    // --- Sprint 2 (aberto) — equipe Code Wave (u3, u5, u7) ---
+    { id: 'pa07', periodo_id: 'ap2', equipe_id: 'eq2', avaliador_id: 'u3', avaliado_id: 'u5', colaboracao: 4, responsabilidade: 4, comunicacao: 4, qualidade_entregas: 5, autonomia: 4, comentario: 'Entregas consistentes e bem alinhadas ao design.', estado: 'enviada' },
+    { id: 'pa08', periodo_id: 'ap2', equipe_id: 'eq2', avaliador_id: 'u3', avaliado_id: 'u7', colaboracao: 3, responsabilidade: 4, comunicacao: 4, qualidade_entregas: 3, autonomia: 4, comentario: '', estado: 'enviada' },
+    { id: 'pa09', periodo_id: 'ap2', equipe_id: 'eq2', avaliador_id: 'u5', avaliado_id: 'u3', colaboracao: 5, responsabilidade: 4, comunicacao: 5, qualidade_entregas: 4, autonomia: 5, comentario: 'Resolve bloqueios rápido e explica a solução.', estado: 'enviada' },
+    { id: 'pa10', periodo_id: 'ap2', equipe_id: 'eq2', avaliador_id: 'u5', avaliado_id: 'u7', colaboracao: null, responsabilidade: 3, comunicacao: null, qualidade_entregas: null, autonomia: null, comentario: '', estado: 'rascunho' },
+    { id: 'pa11', periodo_id: 'ap2', equipe_id: 'eq2', avaliador_id: 'u7', avaliado_id: 'u3', colaboracao: 4, responsabilidade: 5, comunicacao: 4, qualidade_entregas: 4, autonomia: 4, comentario: 'Comunica bem o avanço no daily.', estado: 'enviada' },
+    { id: 'pa12', periodo_id: 'ap2', equipe_id: 'eq2', avaliador_id: 'u7', avaliado_id: 'u5', colaboracao: 4, responsabilidade: 4, comunicacao: 3, qualidade_entregas: 4, autonomia: 4, comentario: '', estado: 'enviada' },
+    // --- Sprint 1 (encerrado) — base para a evolução entre períodos ---
+    { id: 'pa13', periodo_id: 'ap1', equipe_id: 'eq1', avaliador_id: 'u4', avaliado_id: 'u2', colaboracao: 4, responsabilidade: 4, comunicacao: 3, qualidade_entregas: 4, autonomia: 4, comentario: '', estado: 'enviada' },
+    { id: 'pa14', periodo_id: 'ap1', equipe_id: 'eq1', avaliador_id: 'u2', avaliado_id: 'u4', colaboracao: 3, responsabilidade: 4, comunicacao: 4, qualidade_entregas: 3, autonomia: 4, comentario: '', estado: 'enviada' },
+    { id: 'pa15', periodo_id: 'ap1', equipe_id: 'eq2', avaliador_id: 'u5', avaliado_id: 'u3', colaboracao: 4, responsabilidade: 3, comunicacao: 4, qualidade_entregas: 4, autonomia: 4, comentario: '', estado: 'enviada' },
+    { id: 'pa16', periodo_id: 'ap1', equipe_id: 'eq2', avaliador_id: 'u3', avaliado_id: 'u5', colaboracao: 4, responsabilidade: 4, comunicacao: 4, qualidade_entregas: 4, autonomia: 3, comentario: '', estado: 'enviada' }
   ]
 }

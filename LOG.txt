@@ -1919,3 +1919,229 @@ Build: SUCESSO (vite, 175 modulos).
     remover foto -> perfil sem avatar e pasta do Storage ... VAZIA (sem órfão)
   => NENHUM ERRO DE CONSOLE/JS em todo o fluxo pós-login.
 --------------------------------------------------------------------------------
+
+[2026-10-09] AVALIACAO POR PARES (PEER EVALUATION) - PLANO DE ACAO EM ETAPAS
+--------------------------------------------------------------------------------
+Fonte das acoes: Peer_Evaluation.md. Modulo novo: avaliacao por pares entre
+alunos da MESMA equipe, com periodos, 5 criterios (escala 1-5), medias por
+aluno/periodo e grafico radar. Regra central: media so considera avaliacoes
+ENVIADAS (rascunho fica fora); "sem dados"/null nunca vira zero; sem
+autoavaliacao; 1 avaliacao por (periodo, avaliador, avaliado); o aluno ve
+apenas a MEDIA recebida (anonima), o professor ve tudo.
+
+PLANO EM ETAPAS (do Peer_Evaluation.md, secoes 12-14 - checklist de aceite):
+  [E1] Modelo de dados + migracao 0013 (tabelas periodos/avaliacoes, enums,
+       triggers de validacao, RLS, RPC peer_resultados, seed demo).
+  [E2] Camada de negocio: src/utils/peerEvaluation.js (criterios, escalas,
+       medias, progresso, validacoes de formulario e de periodo).
+  [E3] Servico/dataService: CRUD de periodos e avaliacoes (mock + Supabase),
+       leitura via RPC, e regras de "quem ve o que" (aluno x professor).
+  [E4] UI professor: PeerEvaluationPage (tabela de participacao, gerenciamento
+       de periodos, painel de comentarios e medias por equipe).
+  [E5] UI aluno: formulario de avaliacao (form + grafico radar), com rascunho
+       e envio, e "Colegas do meu grupo" com medias recebidas.
+  [E6] Integracao: rota "peers" no App.jsx + item de menu no Sidebar.
+  [E7] Dados mockados para validacao do ambiente (modo Conectado).
+  [E8] Validacao: build + testes unitarios de calculo/regras + smoke de UI.
+  [E9] Registro em LOG/DEPLOY (migracao pendente de aplicacao manual).
+
+STATUS: TODAS AS ETAPAS EXECUTADAS (detalhes em LOG abaixo). Pendencia unica:
+aplicar a migracao 0013 no SQL Editor do Supabase (bloqueio de privilegios
+deste ambiente - nao e possivel aplicar DDL via anon key).
+--------------------------------------------------------------------------------
+
+[2026-10-09] ETAPA E1 - MIGRACAO 0013_peer_evaluation.sql (CRIADA)
+  supabase/migrations/0013_peer_evaluation.sql:
+    * Enum peer_avaliacao_estado (rascunho | enviada).
+    * Tabela avaliacoes_periodos (id, nome, data_inicio, data_final, estado).
+    * Tabela peer_avaliacoes (periodo, equipe, avaliador, avaliado + 5 notas,
+      comentario, estado) com constraints: par unico (periodo, avaliador,
+      avaliado), sem autoavaliacao (avaliador <> avaliado), notas 1-5.
+    * Trigger peer_avaliacao_validar: so aluno da MESMA equipe, sem
+      autoavaliacao, periodo encerrado/rascunho nao aceita edicao, e "enviada"
+      exige os 5 criterios preenchidos.
+    * RLS: aluno ve/edita/exclui apenas as proprias linhas; professor/gestor
+      ve tudo; anon sem acesso. As medias recebidas vem SÓ pela RPC.
+    * RPC peer_resultados(p_periodo_id): agrega medias recebidas por
+      aluno/periodo sem expor quem avaliou (privacidade).
+    * Grants explicitos para authenticated; revoke de anon.
+  PENDENTE: nao aplicada no banco (REST de avaliacoes_periodos/peer_avaliacoes
+  retorna 404 = tabela inexistente). Aplicar manualmente no SQL Editor.
+
+[2026-10-09] ETAPA E2 - REGRAS DE NEGOCIO (src/utils/peerEvaluation.js)
+  CRITERIOS (5), ESCALA (1-5), MSG_SEM_DADOS ("Sem dados" - null nunca vira 0),
+  formatarMedia, calcularMedias (so 'enviada'), progresso do aluno, validacoes
+  de formulario (envio exige os 5; rascunho exige ao menos 1) e de periodo
+  (aberto aceita edicao; rascunho/encerrado nao).
+
+[2026-10-09] ETAPA E3 - SERVICO (src/services/dataService.js)
+  CRUD de periodos e avaliacoes, leitura de resultados via RPC
+  peer_resultados (com fallback p/ tabela quando a migracao ainda nao existe),
+  regras de visibilidade (aluno so as proprias linhas; professor tudo),
+  e limpeza em cascata quando usuario/equipe/periodo e excluido.
+
+[2026-10-09] ETAPA E4 - UI PROFESSOR (PeerEvaluationPage.jsx)
+  Tabela de participacao (esperadas/enviadas/pendentes por aluno), gerenciamento
+  de periodos (novo/editar/abrir/encerrar), painel de comentarios e medias por
+  equipe, aviso de confidencialidade. Rota "peers" no App.jsx (src/App.jsx:29)
+  e item de menu "Avaliação por Pares" no Sidebar (Sidebar.jsx:15).
+
+[2026-10-09] ETAPA E5 - UI ALUNO (components/peers/*)
+  PeerEvaluationForm (5 criterios + comentario, rascunho/envio),
+  PeerRadarChart (grafico radar das medias recebidas) e
+  PeriodoAvaliacaoModal. Secao "Colegas do meu grupo" mostra medias recebidas.
+
+[2026-10-09] ETAPA E7 - DADOS MOCKADOS PARA VALIDACAO DO AMBIENTE
+  * src/services/mockData.js: periodos (Sprint 1/2/3) + avaliacoes de
+    exemplo para validar o modo offline.
+  * Seed da 0013: periodos fixos + avaliacoes de DEMOSTRACAO geradas a partir
+    das EQUIPES REAIS do banco (aluno avalia colegas da propria equipe nos
+    periodos Sprint 1 e 2). Marcadas com "[DEMO-PEER]" no comentario; a
+    reexecucao apaga as anteriores e NUNCA sobrescreve avaliacao real.
+    Assim o modulo pode ser validado neste ambiente ja populado, sem depender
+    dos IDs do 0002_seed.
+
+[2026-10-09] ETAPA E8 - VALIDACAO
+  npm run build .................. SUCESSO (3.66s)
+  npm test (tests/peerEvaluation.test.mjs) ... 26/26 PASS
+    (criterios, medias/evolucao, rascunho fora das medias, autoavaliacao,
+     formulario, estado do periodo, privacidade aluno x professor, progresso,
+     painel de participacao)
+  Smoke de UI (tests/smoke.peers.mjs, Chrome headless):
+    professor (carlos) -> titulo, "Novo periodo", aviso de confidencialidade
+                          e estado vazio com CTA "Criar periodo" .... 0 erros JS
+    aluno (bianca, conta real em equipe) -> titulo, aviso de
+      confidencialidade e "Nao ha periodo de avaliacao disponivel" .. 0 erros JS
+    => NENHUM pageerror/console.error (so 404 de tabela esperado, pois a
+       migracao 0013 ainda nao foi aplicada - tratado com alerta amigavel).
+
+[2026-10-09] ETAPA E9 - PENDENCIA DE DEPLOY (documentada)
+  APlicar no SQL Editor do Supabase: supabase/migrations/0013_peer_evaluation.sql
+  (inclui o seed demo [DEMO-PEER]). Apos aplicar, o professor passa a ver a
+  tabela de participacao e o aluno a ver "Colegas do meu grupo" com as medias.
+
+[2026-10-09] ETAPA E10 - ARQUIVO DE MIGRACAO GERADO (aguardando usuario)
+  Por INSTABILIDADE do Supabase nesta data, a migracao 0013 NAO foi aplicada.
+  Arquivo pronto para executar no SQL Editor quando o servico estabilizar:
+    supabase/migrations/0013_peer_evaluation.sql
+  Conteudo: tabelas avaliacoes_periodos e peer_avaliacoes, enums, triggers de
+  validacao, RLS, RPC peer_resultados e seed demo ([DEMO-PEER]).
+  Como executar: abrir o SQL Editor do Supabase e rodar o arquivo INTEIRO.
+  Efeito pos-execucao: professor passa a ver a tabela de participacao e o
+  aluno a ver "Colegas do meu grupo" com as medias recebidas.
+
+ESTADO ATUAL: etapas E1-E9 concluidas (ver acima). MIGRACAO PENDENTE (E10).
+  => AGUARDANDO USUARIO para aplicar a migracao 0013 e definir a proxima etapa.
+
+
+--------------------------------------------------------------------------------
+[2026-10-14] MIGRACOES 0005/0006/0013 APLICADAS + 2 BUGS CORRIGIDOS (0014 + RADAR) ✔
+--------------------------------------------------------------------------------
+  APLICACAO PELO USUARIO (SQL Editor) e CONFERENCIA REMOTA (API do projeto,
+  sessao de professor, somente leitura):
+    * 0013_peer_evaluation.sql ....... APLICADA -> avaliacoes_periodos = 3
+      (Sprint 1 encerrado | Sprint 2 aberto | Sprint 3 rascunho),
+      peer_avaliacoes = 48 (35 enviadas, 13 rascunho) e RPC peer_resultados
+      respondendo HTTP 200 (16 linhas agregadas).
+      => fecha a "MIGRACAO PENDENTE (E10)" de 2026-10-09.
+    * 0005_performance_exclusao_equipes.sql ... executada sem erro (fecha o
+      item "PENDENTE (manual)" de 2026-09-25; indice e trigger de auditoria
+      em lote nao sao expostos pela API - conferencia so no SQL Editor).
+    * 0006_permissao_tarefas_aluno.sql ........ executada sem erro (policies
+      de tarefas do aluno + trigger bloquear_conclusao_sem_validacao; idem,
+      nao verificavel por API).
+
+  BUGS ENCONTRADOS (smoke tests/smoke.peers.mjs contra a base REAL, logo
+  depois da 0013 - antes os testes so viam 404 e nao conseguiam acusar):
+    1) peer_resultados agrupava por periodo + avaliado + EQUIPE. Aluno membro
+       de 2 equipes (Bianca: "JORG" e "padres") retornava 2 linhas por
+       periodo ->
+         * "Warning: Encountered two children with the same key" na tabela
+           "Evolucao entre periodos";
+         * resultados.find(...) levava a PRIMEIRA linha -> radar do aluno e
+           painel do professor exibiam so uma das equipes (Sprint 2: 2 de 5
+           avaliacoes consideradas).
+       Divergencia: o mock ja agrupava por periodo|aluno
+       (dataService.listarPeerResultados) e Peer_Evaluation.md (item 7) pede
+       media "por aluno e periodo".
+    2) PeerRadarChart usava height="auto" como ATRIBUTO de <svg> ->
+       console.error "<svg> attribute height: Expected length" em todo render
+       do radar do aluno (derrubava o smoke).
+
+  CORRECOES:
+    1) supabase/migrations/0014_peer_resultados_agrupado.sql (NOVA - aplicar
+       no SQL Editor): create or replace de peer_resultados agrupando por
+       periodo_id + avaliado_id, com equipe REPRESENTATIVA (a de mais
+       avaliacoes no periodo; empate -> menor uuid). Mesma assinatura ->
+       grants da 0013 seguem validos e a privacidade continua integra (aluno
+       so ve a propria linha, via auth.uid()). Observacao: no SQL Editor a
+       funcao devolve 0 linhas (auth.uid() nulo -> is_professor() falso) -
+       comportamento esperado, nao e falha.
+    2) src/utils/peerEvaluation.js: NOVA consolidarResultados() - o front
+       consolida em UMA linha por (periodo, avaliado) com media PONDERADA
+       pelo numero de respostas de cada criterio (nunca media de medias),
+       soma de total_avaliacoes e equipe representativa. Aplicada em
+       PeerEvaluationPage.carregarDados - blindagem que ja funciona com a
+       0014 ainda nao aplicada e e idempotente quando a RPC vem corrigida.
+    3) src/components/peers/PeerRadarChart.jsx: width/height com valores
+       validos (320) e dimensionamento via CSS (width:100%, height:auto) ->
+       sem erro de console e mesmo visual (100% da coluna, max 320px).
+
+  VALIDACAO:
+    * npm run build ... SUCESSO (3,71s).
+    * npm test ........ 29/29 PASS (+3 testes de consolidacao: chave unica,
+      media ponderada 3,40/4,20/4,40, criterio so em uma linha = 2,00,
+      criterio sem resposta = null ("Sem dados"), idempotencia).
+    * node tests/smoke.peers.mjs -> EXIT 0 (0 erros pageerror/console.error):
+        professor -> titulo, tabela de participacao, "Novo periodo" e aviso
+                     de confidencialidade ....... ok
+        aluno     -> titulo, "Colegas do meu grupo" com medias, sem botao
+                     "Novo periodo", alerta de migracao pendente = false .. ok
+
+  PENDENCIAS RESTANTES:
+    * aplicar supabase/migrations/0014_peer_resultados_agrupado.sql no SQL
+      Editor (o front ja compensa, mas o banco deve voltar a 1 linha/aluno);
+    * commit + push + deploy (modulo de pares, 0013/0014, testes e este LOG
+      ainda nao commitados); sugerido ignorar tests/_smoke_*.png no .gitignore;
+    * opcional (Peer_Evaluation.md 8.4): filtro por TURMA no painel do
+      professor (hoje: periodo, equipe e aluno).
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-10-14] MIGRACAO 0014 APLICADA - peer_resultados SEM DUPLICIDADE ✔
+--------------------------------------------------------------------------------
+  APLICACAO: usuario executou supabase/migrations/0014_peer_resultados_agrupado.sql
+  no SQL Editor (sem erro). CONFERENCIA REMOTA na sequencia (sessao de professor,
+  somente leitura, via API):
+    * RPC peer_resultados (p_periodo_id = null) -> HTTP 200 com 14 LINHAS
+      (antes 16 com a versao agrupada por equipe da 0013);
+    * chaves duplicadas (periodo_id + avaliado_id) -> 0 (antes: 2);
+    * Aluno multi-equipe (Bianca Ramos - "JORG" + "padres") agora tem UMA linha
+      por periodo, somando as duas equipes:
+        Sprint 1 -> total_avaliacoes = 4  (antes: 2 + 2 em duas linhas)
+        Sprint 2 -> total_avaliacoes = 5  (antes: 2 + 3)
+      -> o radar e o painel do professor voltam a considerar TODAS as avaliacoes
+         recebidas (antes o .find() levava so a primeira linha);
+      equipe exibida = representativa (a de mais avaliacoes): Sprint 1 -> JORG,
+      Sprint 2 -> padres.
+    * contagem de _n por criterio tambem soma as equipes (ex.: colaboracao_n = 4
+      e 5), mantendo "Sem dados" (null) para criterio sem resposta.
+  O front mantem consolidarResultados() (src/utils/peerEvaluation.js) como
+  blindagem idempotente, caso uma base ainda rode a versao antiga da RPC.
+
+  VALIDACAO NESTA DATA:
+    * npm run build ........ SUCESSO.
+    * npm test ............. 29/29 PASS.
+    * node tests/smoke.peers.mjs -> EXIT 0 (0 erros pageerror/console.error):
+        professor -> titulo, tabela de participacao, "Novo periodo" e aviso de
+                     confidencialidade ....... ok
+        aluno     -> titulo, "Colegas do meu grupo" com medias, sem botao
+                     "Novo periodo", alerta de migracao pendente = false .. ok
+    * aplicacao dev rodando em http://localhost:5173 -> HTTP 200
+      (titulo "EduProject Agile - Gestao Agil Educacional").
+
+  PENDENCIAS RESTANTES:
+    * commit + push + deploy (modulo de pares, 0013/0014, testes e este LOG
+      nao commitados); sugerido ignorar tests/_smoke_*.png no .gitignore;
+    * opcional (Peer_Evaluation.md 8.4): filtro por TURMA no painel do professor.
+--------------------------------------------------------------------------------
